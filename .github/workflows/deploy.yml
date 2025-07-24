@@ -1,0 +1,67 @@
+name: Deploy MDXpress Docs to GitHub Pages
+
+description: >
+  Build the MDXpress documentation app in apps/docs and deploy the dist folder to GitHub Pages.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: apps/docs/package-lock.json
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Install dependencies
+        working-directory: apps/docs
+        run: npm install
+
+      - name: Build docs app
+        working-directory: apps/docs
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Create 404.html for SPA routing
+        working-directory: apps/docs/dist
+        run: |
+          cp index.html 404.html
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/docs/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
