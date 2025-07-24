@@ -81,6 +81,67 @@ loadPhaserAndRun(function () {
     // Initialize camera before using it
     camera = this.cameras.main;
 
+    // Mouse/touch zoom event listeners (after camera is initialized)
+    const minZoom = 0.5;
+    const maxZoom = 2.0;
+    let lastPinchDist: number | null = null;
+    setTimeout(() => {
+      const gameContainer = document.getElementById("game-container");
+      if (gameContainer) {
+        // Mouse wheel zoom
+        gameContainer.addEventListener(
+          "wheel",
+          (event) => {
+            if (!camera) return;
+            event.preventDefault();
+            let newZoom = camera.zoom;
+            if (event.deltaY < 0) {
+              newZoom *= 1.1;
+            } else {
+              newZoom /= 1.1;
+            }
+            newZoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
+            camera.setZoom(newZoom);
+          },
+          { passive: false }
+        );
+        // Pinch-to-zoom
+        gameContainer.addEventListener("touchstart", (e) => {
+          if (e.touches.length === 2) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            lastPinchDist = Math.sqrt(dx * dx + dy * dy);
+          }
+        });
+        gameContainer.addEventListener(
+          "touchmove",
+          (e) => {
+            if (e.touches.length === 2 && lastPinchDist !== null) {
+              const dx = e.touches[0].clientX - e.touches[1].clientX;
+              const dy = e.touches[0].clientY - e.touches[1].clientY;
+              const newDist = Math.sqrt(dx * dx + dy * dy);
+              let newZoom = camera.zoom * (newDist / lastPinchDist);
+              newZoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
+              camera.setZoom(newZoom);
+              lastPinchDist = newDist;
+              e.preventDefault();
+            }
+          },
+          { passive: false }
+        );
+        gameContainer.addEventListener("touchend", (e) => {
+          if (e.touches.length < 2) {
+            lastPinchDist = null;
+          }
+        });
+      }
+    }, 0);
+    // Add grid graphics
+    gridGraphics = this.add.graphics();
+
+    // Initialize camera before using it
+    camera = this.cameras.main;
+
     // Initial zoom calculation (revert to 8 tiles)
     function setMinTileZoomAndPlayer(useCameraDisplay = false) {
       const minTiles = 8;
