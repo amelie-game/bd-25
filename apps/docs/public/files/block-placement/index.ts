@@ -1,26 +1,42 @@
+// Type-only import for Phaser types
+import type PhaserType from "phaser";
+
+// Module context for global augmentation
+export {};
+declare global {
+  interface Window {
+    Phaser?: typeof PhaserType;
+  }
+}
+
 // Dynamically load Phaser, then run the game code
-function loadPhaserAndRun(main) {
+function loadPhaserAndRun(main: () => void): void {
   if (window.Phaser) return main();
-  var script = document.createElement("script");
+  const script = document.createElement("script");
   script.src = "https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js";
   script.onload = main;
   document.head.appendChild(script);
 }
 
-loadPhaserAndRun(function () {
+loadPhaserAndRun(() => {
   const tileSize = 48;
   const gridWidth = 10;
   const gridHeight = 8;
-  let worldTiles = Array.from({ length: gridWidth }, () =>
+  // 0 = empty, 1 = block
+  const worldTiles: number[][] = Array.from({ length: gridWidth }, () =>
     Array(gridHeight).fill(0)
   );
 
-  function preload() {
+  // Use PhaserType for type checking
+  type SceneType = PhaserType.Scene;
+
+  function preload(this: SceneType): void {
     this.load.image("block", "https://labs.phaser.io/assets/sprites/block.png");
   }
 
-  function create() {
-    this.input.on("pointerdown", (pointer) => {
+  function create(this: SceneType): void {
+    this.input.on("pointerdown", (pointer: any) => {
+      // Use 'any' for pointer since Phaser types may not be available at runtime
       const tileX = Math.floor(pointer.worldX / tileSize);
       const tileY = Math.floor(pointer.worldY / tileSize);
       if (
@@ -70,8 +86,9 @@ loadPhaserAndRun(function () {
     }
   }
 
-  const config = {
-    type: Phaser.AUTO,
+  // Use PhaserType for config typing
+  const config: PhaserType.Types.Core.GameConfig = {
+    type: window.Phaser ? window.Phaser.AUTO : 0,
     width: tileSize * gridWidth,
     height: tileSize * gridHeight,
     backgroundColor: "#bada55",
@@ -82,5 +99,6 @@ loadPhaserAndRun(function () {
     },
   };
 
-  new Phaser.Game(config);
+  // @ts-ignore: Phaser is loaded dynamically
+  new window.Phaser!.Game(config);
 });
