@@ -91,18 +91,28 @@ loadPhaserAndRun(function () {
       const viewHeight = useCameraDisplay
         ? camera.displayHeight
         : this.scale.height;
-      // Guarantee at least minTiles fully visible on both axes
-      let zoomX = viewWidth / (tileSize * minTiles);
-      let zoomY = viewHeight / (tileSize * minTiles);
-      let zoom = Math.min(zoomX, zoomY);
-      // Adjust zoom so that floor(viewHeight / (tileSize * zoom)) >= minTiles
-      while (Math.floor(viewHeight / (tileSize * zoom)) < minTiles) {
-        zoom *= 0.99; // decrease zoom slightly until enough tiles fit
+      // If container can fit at least 8 tiles at zoom 1.0, use zoom 1.0
+      let zoom;
+      if (
+        viewWidth >= tileSize * minTiles &&
+        viewHeight >= tileSize * minTiles
+      ) {
+        zoom = 1.0;
+        camera.setZoom(zoom);
+      } else {
+        // Otherwise, reduce zoom to fit at least 8 tiles
+        let zoomX = viewWidth / (tileSize * minTiles);
+        let zoomY = viewHeight / (tileSize * minTiles);
+        zoom = Math.min(zoomX, zoomY);
+        // Adjust zoom so that floor(viewHeight / (tileSize * zoom)) >= minTiles
+        while (Math.floor(viewHeight / (tileSize * zoom)) < minTiles) {
+          zoom *= 0.99; // decrease zoom slightly until enough tiles fit
+        }
+        while (Math.floor(viewWidth / (tileSize * zoom)) < minTiles) {
+          zoom *= 0.99;
+        }
+        camera.setZoom(zoom);
       }
-      while (Math.floor(viewWidth / (tileSize * zoom)) < minTiles) {
-        zoom *= 0.99;
-      }
-      camera.setZoom(zoom);
       // Draw grid 2 tiles wider and higher than visible area
       const gridWidth = viewWidth / zoom + tileSize * 2;
       const gridHeight = viewHeight / zoom + tileSize * 2;
@@ -171,17 +181,19 @@ loadPhaserAndRun(function () {
         windowWidth: window.innerWidth,
         windowHeight: window.innerHeight,
       };
-      debugText.setText(
+      let debugStr =
         `Container: ${window.innerWidth} x ${window.innerHeight}\n` +
-          `Visible Game World: ${Math.round(
-            camera.displayWidth
-          )} x ${Math.round(camera.displayHeight)}\n` +
-          `Total Grid: ${Math.floor(gridPixelWidth / tileSize)} x ${Math.floor(
-            gridPixelHeight / tileSize
-          )}\n` +
-          `Visible Grid: ${fullTilesX} x ${fullTilesY}\n` +
-          `Camera Zoom: ${zoom.toFixed(2)}`
-      );
+        `Max Game World: ${maxWidth} x ${maxHeight}\n` +
+        `Visible Game World: ${camera.displayWidth.toFixed(
+          0
+        )} x ${camera.displayHeight.toFixed(0)}\n`;
+      debugStr +=
+        `Total Grid: ${Math.floor(gridPixelWidth / tileSize)} x ${Math.floor(
+          gridPixelHeight / tileSize
+        )}\n` +
+        `Visible Grid: ${fullTilesX} x ${fullTilesY}\n` +
+        `Camera Zoom: ${zoom.toFixed(2)}`;
+      debugText.setText(debugStr);
     }
   }
 
