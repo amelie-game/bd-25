@@ -101,31 +101,41 @@ loadPhaserAndRun(function () {
     if (isDragging && target) {
       const dx = target.x - player.x;
       const dy = target.y - player.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      // Calculate step based on moveSpeed (pixels/sec) and delta (ms)
       const step = moveSpeed * (delta / 1000);
       const snapThreshold = 2; // pixels
-      if (dist > snapThreshold) {
-        player.x += (dx / dist) * Math.min(step, dist);
-        player.y += (dy / dist) * Math.min(step, dist);
-        // Play walking animation based on direction
-        if (Math.abs(dx) > Math.abs(dy)) {
-          if (dx < 0) {
-            player.anims.play("left", true);
-          } else {
-            player.anims.play("right", true);
-          }
+
+      // Always walk horizontally first, then vertically
+      if (Math.abs(dx) > snapThreshold) {
+        // Move horizontally only
+        if (Math.abs(dx) < step) {
+          player.x = target.x;
         } else {
-          if (dy < 0) {
-            player.anims.play("up", true);
-          } else {
-            player.anims.play("down", true);
-          }
+          player.x += step * Math.sign(dx);
+        }
+        // Play horizontal animation
+        if (dx < 0) {
+          player.anims.play("left", true);
+        } else {
+          player.anims.play("right", true);
+        }
+      } else if (Math.abs(dy) > snapThreshold) {
+        // Only move vertically after horizontal is done
+        if (Math.abs(dy) < step) {
+          player.y = target.y;
+        } else {
+          player.y += step * Math.sign(dy);
+        }
+        // Play vertical animation
+        if (dy < 0) {
+          player.anims.play("up", true);
+        } else {
+          player.anims.play("down", true);
         }
       } else {
+        // Snap to target and idle
         player.x = target.x;
         player.y = target.y;
-        player.anims.play("turn"); // Idle frame
+        player.anims.play("turn");
       }
     } else {
       // Not moving, idle
