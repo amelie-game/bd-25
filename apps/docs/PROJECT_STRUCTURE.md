@@ -19,6 +19,7 @@ This project is organized for robust, automated documentation processing and bui
   - `mdx-validate.cjs` — **Main script to validate/filter MDX files and generate artifacts**
 
 - `public/` — Static assets
+  - `files/` — Files embedded into the documentations (e.g. scripts)
 - `example-docs/` — Example documentation (symlinked or copied into docs/)
 
 ## Workflow
