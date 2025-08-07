@@ -1,26 +1,34 @@
 # Architecture
 
-
 This document explores multiple architectural styles for game development, as discussed in the context of a Phaser.js project. We provide an overview of each, sample implementations based on a simple tile-based game (with animation and hit detection), and a critical evaluation of their benefits and drawbacks.
 
-1. [Overview](#overview)
-2. [Japanese Software Philosophy: Sample \& Evaluation](#japanese-software-philosophy-sample--evaluation)
+1. [Decision](#decision)
+2. [Alternatives](#alternatives)
+3. [Japanese Software Philosophy: Sample \& Evaluation](#japanese-software-philosophy-sample--evaluation)
    1. [Sample Implementation (Minimalist, In-Scene Model)](#sample-implementation-minimalist-in-scene-model)
    2. [Critical Evaluation](#critical-evaluation)
-3. [Entity-Component-System (ECS): Sample \& Evaluation](#entity-component-system-ecs-sample--evaluation)
+4. [Entity-Component-System (ECS): Sample \& Evaluation](#entity-component-system-ecs-sample--evaluation)
    1. [Sample Implementation (Complete ECS Example)](#sample-implementation-complete-ecs-example)
    2. [Critical Evaluation](#critical-evaluation-1)
-4. [Hexagonal Architecture: Sample \& Evaluation](#hexagonal-architecture-sample--evaluation)
+5. [Hexagonal Architecture: Sample \& Evaluation](#hexagonal-architecture-sample--evaluation)
    1. [Sample Implementation (Ports \& Adapters, Modularized, Improved Separation)](#sample-implementation-ports--adapters-modularized-improved-separation)
    2. [Critical Evaluation](#critical-evaluation-2)
-5. [Model-View-Controller (MVC): Sample \& Evaluation](#model-view-controller-mvc-sample--evaluation)
+6. [Model-View-Controller (MVC): Sample \& Evaluation](#model-view-controller-mvc-sample--evaluation)
    1. [Sample Implementation (MVC)](#sample-implementation-mvc)
    2. [Critical Evaluation](#critical-evaluation-3)
-6. [Event-Driven / Observer Pattern: Sample \& Evaluation](#event-driven--observer-pattern-sample--evaluation)
+7. [Event-Driven / Observer Pattern: Sample \& Evaluation](#event-driven--observer-pattern-sample--evaluation)
    1. [Sample Implementation (Observer/Event-Driven)](#sample-implementation-observerevent-driven)
    2. [Critical Evaluation](#critical-evaluation-4)
 
-## Overview
+## Decision
+
+For Amelcraft, we will begin with the Japanese Software Philosophy (minimalist, in-scene model) to maximize simplicity, rapid prototyping, and maintainability. This approach is ideal for small, fast-evolving games and allows for quick iteration and easy refactoring.
+
+If the game grows in complexity—such as adding more entities, advanced mechanics, or requiring better testability and scalability—we will incrementally refactor toward an Entity-Component-System (ECS) or Hexagonal architecture. These styles offer greater modularity, decoupling, and long-term maintainability, but introduce more boilerplate and abstraction.
+
+This staged approach ensures we keep development efficient and accessible in the early phases, while remaining flexible to adopt more robust architectural patterns as needed.
+
+## Alternatives
 
 | Style                        | Core Focus / Principle              | Strengths                                              | Drawbacks / When to Avoid                |
 | ---------------------------- | ----------------------------------- | ------------------------------------------------------ | ---------------------------------------- |
