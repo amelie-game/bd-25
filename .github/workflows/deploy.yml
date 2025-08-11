@@ -46,8 +46,8 @@ jobs:
           NODE_ENV: production
 
       - name: Create 404.html for docs SPA routing
-        working-directory: apps/docs/dist
-        run: cp index.html 404.html
+        run: |
+          cp apps/docs/dist/index.html apps/docs/dist/404.html
 
       - name: Install dependencies (amelcraft)
         working-directory: apps/amelcraft
