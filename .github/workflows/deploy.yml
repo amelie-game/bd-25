@@ -1,4 +1,4 @@
-name: Deploy Docs App to GitHub Pages
+name: Deploy Apps to GitHub Pages
 
 on:
   push:
@@ -32,20 +32,36 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Install dependencies
+      - name: Install dependencies (docs)
         working-directory: ./apps/docs
         run: npm install
 
-      - name: Build
+      - name: Install dependencies (amelcraft)
+        working-directory: ./apps/amelcraft
+        run: npm install
+
+      - name: Build docs
         working-directory: ./apps/docs
         run: npm run build
         env:
           NODE_ENV: production
 
+      - name: Build amelcraft
+        working-directory: ./apps/amelcraft
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Merge dist folders
+        run: |
+          mkdir -p merged-dist
+          cp -r apps/docs/dist/* merged-dist/
+          cp -r apps/amelcraft/dist/* merged-dist/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./apps/docs/dist
+          path: merged-dist
 
   deploy:
     environment:
