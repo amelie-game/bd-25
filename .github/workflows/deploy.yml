@@ -1,4 +1,4 @@
-name: Deploy Apps to GitHub Pages
+name: Deploy Docs App to GitHub Pages
 
 on:
   push:
@@ -27,17 +27,17 @@ jobs:
         with:
           node-version: "18"
           cache: "npm"
-          cache-dependency-path: "./docs/app/package-lock.json"
+          cache-dependency-path: "./apps/docs/package-lock.json"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Install dependencies
-        working-directory: ./docs/app
+        working-directory: ./apps/docs
         run: npm install
 
       - name: Build
-        working-directory: ./docs/app
+        working-directory: ./apps/docs
         run: npm run build
         env:
           NODE_ENV: production
@@ -45,7 +45,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./docs/app/dist
+          path: ./apps/docs/dist
 
   deploy:
     environment:
