@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.0.0] - 2025-08-14
+
+### Changed
+- **Major Migration:** Migrated from a Vite+React+MDX app-template to a fully Astro-powered template for documentation and static site generation.
+- **Simplified Structure:** Removed Vite, React Router, and complex MDX import logic in favor of Astro content collections and dynamic routes.
+- **Improved Developer Experience:** Dramatically reduced project complexity, improved maintainability, and made interactive code and theming easier to implement.
+- **Modernized Workflow:** All navigation, theming, and code embedding now handled by Astro and simple CSS/JS. Interactive code examples use React components loaded with Astro's client directives.
+- **Updated Documentation:** Updated `PROJECT_STRUCTURE.md` to reflect the new Astro-based structure.
+
+# Changelog
+
 ## [1.7.4] - 2025-07-24
 
 ### Changed

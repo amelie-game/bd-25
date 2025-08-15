@@ -1,0 +1,24 @@
+---
+import { getCollection } from "astro:content";
+
+const entries = await getCollection("docs");
+const mainCandidates = ["readme", "index", "main", "documentation", "doc"];
+
+let mainEntry = entries.find((e) =>
+  mainCandidates.includes(e.id.toLowerCase())
+);
+
+if (!mainEntry && entries.length > 0) {
+  // Fallback: find the entry with the shortest id (closest to root)
+  mainEntry = entries.reduce((prev: any, curr: any) => {
+    return prev.id.split("/").length <= curr.id.split("/").length ? prev : curr;
+  });
+}
+
+if (mainEntry) {
+  // Use Astro's base URL for redirect
+  const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+  return Astro.redirect(`${base}/docs/${mainEntry.id}`);
+}
+// No content to render if no docs found
+---

@@ -1,0 +1,54 @@
+---
+title: Getting Started
+---
+
+import Code from "@components/Code.astro";
+
+# Getting Started
+
+Welcome to your interactive documentation! This system allows you to create engaging documentation with live code examples.
+
+## Features
+
+- **Interactive Code**: Execute TypeScript/JavaScript code directly in your documentation
+- **MDX Support**: Write documentation in MDX format, combining Markdown with React components
+- **Customizable**: Full control over styling and functionality
+- **Git-Friendly**: Text-based format that works well with version control
+
+## Adding Your Own Documents
+
+1. Create `.mdx` files in your docs directory
+2. Add frontmatter with a title
+3. Write your content using Markdown and React components
+4. Use the `Code` component for interactive code examples
+
+## Interactive Code Example
+
+Here's a simple React component example:
+
+<Code
+  src={{ "react-ts": {
+    "/App.tsx": new URL("file:///docs/example-docs/HelloWorld.tsx")
+  } }}
+  showNavigator={false}
+  showTabs={false}
+  showLineNumbers={true}
+  editorHeight={300}
+/>
+
+## TypeScript Example
+
+<Code
+  src={{ "vanilla-ts": {
+    "/index.ts": new URL("file:///docs/example-docs/users.ts")
+  } }}
+  showConsole={true}
+  showNavigator={false}
+  showTabs={false}
+  showLineNumbers={true}
+  editorHeight={400}
+/>
+
+---
+
+**Happy documenting! 📝**

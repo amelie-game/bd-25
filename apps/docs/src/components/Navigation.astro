@@ -1,0 +1,15 @@
+---
+import { getCollection } from "astro:content";
+import NavTree from "./NavTree.astro";
+import { buildTree } from "@/src/utils/buildTree";
+
+const docs = await getCollection("docs");
+
+const tree = buildTree(docs);
+---
+
+<nav class="navigation">
+  <h1 class="navigation-header">{tree.name}</h1>
+  <hr />
+  <NavTree nodes={tree.children} />
+</nav>

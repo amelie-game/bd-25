@@ -1,7 +1,4 @@
-name: Deploy MDXpress Docs to GitHub Pages
-
-description: >
-  Build the MDXpress documentation app in apps/docs and deploy the dist folder to GitHub Pages.
+name: Deploy Apps to GitHub Pages
 
 on:
   push:
@@ -22,7 +19,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -30,50 +27,25 @@ jobs:
         with:
           node-version: "18"
           cache: "npm"
-          cache-dependency-path: apps/docs/package-lock.json
+          cache-dependency-path: "./docs/app/package-lock.json"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
-      - name: Install dependencies (docs)
-        working-directory: apps/docs
+      - name: Install dependencies
+        working-directory: ./docs/app
         run: npm install
 
-      - name: Build docs app
-        working-directory: apps/docs
+      - name: Build
+        working-directory: ./docs/app
         run: npm run build
         env:
           NODE_ENV: production
-
-      - name: Create 404.html for docs SPA routing
-        run: |
-          cp apps/docs/dist/index.html apps/docs/dist/404.html
-
-      - name: Install dependencies (amelcraft)
-        working-directory: apps/amelcraft
-        run: npm install
-
-      - name: Build amelcraft app
-        working-directory: apps/amelcraft
-        run: npm run build
-        env:
-          NODE_ENV: production
-
-      - name: Create 404.html for amelcraft SPA routing
-        working-directory: apps/amelcraft/dist
-        run: cp index.html 404.html
-
-      - name: Prepare site directory
-        run: |
-          mkdir -p site/docs
-          mkdir -p site/amelcraft
-          cp -r apps/docs/dist/* site/docs/
-          cp -r apps/amelcraft/dist/* site/amelcraft/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: ./docs/app/dist
 
   deploy:
     environment:

@@ -1,0 +1,75 @@
+---
+import MobileMenuToggle from "../../components/MobileMenuToggle.astro";
+import Navigation from "../../components/Navigation.astro";
+import ThemeToggle from "../../components/ThemeToggle.astro";
+import FaviconHead from "../../components/FaviconHead.astro";
+import "../../styles/index.css";
+import { getCollection, render } from "astro:content";
+
+export async function getStaticPaths() {
+  const docs = await getCollection("docs");
+
+  const numDocs = docs.length;
+
+  return docs.map((doc) => ({
+    params: { slug: doc.id },
+    props: { doc, numDocs },
+  }));
+}
+
+const { doc, numDocs } = Astro.props;
+
+let Content, error;
+let title = doc.data.title ?? doc.id;
+
+try {
+  const rendered = await render(doc);
+  Content = rendered.Content;
+  title =
+    doc.data.title ??
+    (Array.isArray(doc.rendered?.metadata?.headings) &&
+      doc.rendered?.metadata?.headings?.find((h) => h.depth === 1)?.text) ??
+    doc.id;
+} catch (err) {
+  error = String(err);
+}
+---
+
+<html data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="description" content={title} />
+    <meta name="author" content="MDXpress" />
+    <title>{title}</title>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href={`${import.meta.env.BASE_URL}favicon.svg`}
+    />
+  </head>
+  <body>
+    <div class="app">
+      {numDocs > 1 && <Navigation />}
+      <main class="main-content">
+        <div class="doc-content">
+          {
+            error ? (
+              <pre style="color: red; background: #222; padding: 1em; border-radius: 6px;">
+                {error}
+              </pre>
+            ) : Content ? (
+              <Content />
+            ) : null
+          }
+        </div>
+      </main>
+      <div class="backdrop"></div>
+      <div class="app-actions">
+        <ThemeToggle />
+        {numDocs > 1 && <MobileMenuToggle />}
+      </div>
+    </div>
+  </body>
+</html>

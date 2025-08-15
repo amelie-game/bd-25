@@ -1,3 +1,5 @@
+import Code from "@components/Code.astro"
+
 # 📝 Amelcraft: A Kid-Friendly 2D Minecraft-Inspired Game
 
 ## 🔄 Project Evolution
@@ -58,33 +60,29 @@ The project was inspired by a child’s birthday and her fascination with Minecr
 
 ### Responsive Game Screen & Zoom
 
-<CodePlayground
-  template="vanilla-ts"
-  files={{
-    'index.html': 'files/responsive-game-screen/index.html',
-    'index.ts': 'files/responsive-game-screen/index.ts'
-  }}
-  op
+<Code
+  src={{ "vanilla-ts": {
+    'index.html': new URL('file:///docs/responsive-game-screen/index.html'),
+    'index.ts': new URL('file:///docs/responsive-game-screen/index.ts')
+  }}}
 />
 
 ### Drag to Move
 
-<CodePlayground
-template="vanilla-ts"
-  files={{
-    'index.html': 'files/drag-to-move/index.html',
-    'index.ts': 'files/drag-to-move/index.ts'
-  }}
+<Code
+  src={{ "vanilla-ts": {
+    'index.html': new URL('file:///docs/drag-to-move/index.html'),
+    'index.ts': new URL('file:///docs/drag-to-move/index.ts')
+  }}}
 />
 
 ### Block Placement
 
-<CodePlayground
-  template="vanilla-ts"
-  files={{
-    'index.html': 'files/block-placement/index.html',
-    'index.ts': 'files/block-placement/index.ts'
-  }}
+<Code
+  src={{ "vanilla-ts": {
+    'index.html': new URL('file:///docs/block-placement/index.html'),
+    'index.ts': new URL('file:///docs/block-placement/index.ts')
+  }}}
 />
 
 ## 📚 References & Inspirations

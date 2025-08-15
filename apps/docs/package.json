@@ -1,36 +1,27 @@
 {
-  "name": "@mdexpress/app-template",
-  "version": "1.7.4",
-  "description": "Interactive documentation with MDX and React",
+  "name": "app-template",
   "type": "module",
+  "version": "2.0.0",
   "scripts": {
-    "dev": "vite",
-    "prebuild": "node scripts/mdx-validate.cjs",
-    "predev": "node scripts/mdx-validate.cjs",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "astro dev",
+    "build": "astro build",
+    "prepreview": "npm run build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "test": "vitest"
   },
   "dependencies": {
+    "@astrojs/mdx": "^4.3.3",
+    "@astrojs/react": "^4.3.0",
     "@codesandbox/sandpack-react": "^2.20.0",
-    "marked": "^16.1.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-router-dom": "^6.8.0"
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "astro": "^5.13.0",
+    "highlight.js": "^11.11.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
-    "@mdx-js/react": "^3.1.0",
-    "@mdx-js/rollup": "^3.1.0",
-    "@types/node": "^24.0.14",
-    "@types/react": "^18.0.27",
-    "@types/react-dom": "^18.0.10",
-    "@vitejs/plugin-react": "^4.3.0",
-    "highlight.js": "^11.11.1",
-    "rehype-highlight": "^7.0.2",
-    "typescript": "^5.5.0",
-    "vite": "^5.4.0"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "npm": ">=9.0.0"
+    "vitest": "^3.2.4"
   }
 }

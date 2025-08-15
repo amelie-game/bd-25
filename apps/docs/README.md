@@ -4,16 +4,34 @@ A copy-in CLI tool that scaffolds a customizable Vite+MDX+React documentation ap
 
 ## 🚀 Quick Start
 
-### Using curl (recommended)
+### Interactive Setup
+
+Run the setup script and follow the prompts:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/fea-lib/mdxpress/main/cli/setup.sh | bash
 ```
 
-### Using wget
+### One-liner Setup (with arguments)
+
+Skip the prompts by providing your directories directly:
 
 ```bash
+curl -fsSL https://raw.githubusercontent.com/fea-lib/mdxpress/main/cli/setup.sh | bash -s -- docs my-docs-app
+```
+
+Where:
+- `docs` is your documentation source directory
+- `my-docs-app` is where the documentation app will be created
+
+### Alternative: Using wget
+
+```bash
+# Interactive
 wget -qO- https://raw.githubusercontent.com/fea-lib/mdxpress/main/cli/setup.sh | bash
+
+# With arguments
+wget -qO- https://raw.githubusercontent.com/fea-lib/mdxpress/main/cli/setup.sh | bash -s -- docs my-docs-app
 ```
 
 ### Manual Download
@@ -21,9 +39,26 @@ wget -qO- https://raw.githubusercontent.com/fea-lib/mdxpress/main/cli/setup.sh |
 Download and run the setup script for your platform:
 
 - **Linux/macOS**: [setup.sh](https://raw.githubusercontent.com/fea-lib/mdxpress/main/cli/setup.sh)
-- **Windows**: [setup.bat](https://raw.githubusercontent.com/fea-lib/mdxpress/main/cli/setup.bat)
+
+```bash
+# Interactive mode
+./setup.sh
+
+# With arguments
+./setup.sh docs my-docs-app
+
+# Show help
+./setup.sh --help
+```
 
 ➡️ See [Usage](#️-usage) and [Troubleshooting](#️-troubleshooting) for next steps and help.
+
+### 💡 Pro Tips
+
+- **For CI/CD pipelines**: Use the argument version for automated setups
+- **First-time users**: Use interactive mode to understand the options
+- **Team onboarding**: Share the one-liner with arguments for consistent setup
+- **Multiple projects**: Arguments make it easy to script different configurations
 
 ## 🎯 Perfect For
 
@@ -82,21 +117,47 @@ your-docs-app/                # Configurable via CLI
 ├── public/                   # Static assets
 ```
 
+```
+your-docs-app/          # Configurable via CLI
+├── package.json        # Dependencies and scripts
+├── astro.config.mjs    # Astro configuration with MDX support
+├── tsconfig.json       # TypeScript configuration
+├── .gitignore          # Template Git ignore patterns
+├── example-docs/       # Example documentation
+├── public/             # Static assets (served as-is)
+├── src/                # Main Astro application source code
+│   ├── components/     # Astro and React components (for interactive/MDX code)
+│   ├── content/        # Astro configuration from where to gather the documents
+│   ├── pages/          # Astro page routes (including dynamic docs routing)
+│   ├── styles/         # Global and component CSS
+│   ├── types/          # All globally used types
+│   ├── utils/          # All globally used utilities
+│   └── environment.ts  # Path constants derived from the CLI input
+└── tests/              # Unit tests
+```
+
 ## 🛠️ Usage
 
 1. **Run the setup script** (see Quick Start above)
-2. **Configure your setup** when prompted:
-   - Target directory for the docs app
-   - Source directory for your documentation files
-3. **Install dependencies**:
+   - Use interactive mode for guidance: `curl -s URL | bash`
+   - Use direct arguments for automation: `curl -s URL | bash -s -- docs my-docs-app`
+
+2. **Install dependencies**:
    ```bash
    cd your-docs-app
    npm install
    ```
-4. **Start developing**:
+
+3. **Start developing**:
    ```bash
    npm run dev
    ```
+
+### Setup Options
+
+- **Interactive mode**: Script will prompt for directories
+- **Direct arguments**: `./setup.sh [docs_dir] [target_dir]`
+- **Help**: `./setup.sh --help` shows all usage options
 
 ### Common Issues
 
@@ -113,19 +174,12 @@ Create `.mdx` files in your docs directory:
 
 Here's an interactive React example using the CodePlayground component:
 
-<CodePlayground
-  template="react-ts"
-  files={{
+<Code
+  src={{ "react-ts": {
     "/App.tsx": `export default function App() {
       return <h1>Hello Interactive Docs!</h1>
     }`
-  }}
-  options={{
-    showNavigator: false,
-    showTabs: false,
-    showLineNumbers: true,
-    editorHeight: 300
-  }}
+  } }}
 />
 ```
 
@@ -143,11 +197,11 @@ The setup creates a seamless connection between your existing docs and the inter
 
 Since you own the code, you can customize everything:
 
-- **Styling**: Edit `src/index.css` or add your own CSS
+- **Styling**: Edit `src/styles/index.css` or add your own CSS
 - **Components**: Create custom components in `src/components/`
-- **Layout**: Modify `src/App.tsx` and navigation
-- **Build process**: Update `vite.config.ts`
-- **Routes**: Add new routes in `src/App.tsx`
+- **Layout**: Modify `src/pages/docs/[...slug].astro` and navigation
+- **Build process**: Update `astro.config.mjs`
+- **Routes**: Add new file-based routes in `src/pages`
 
 ## 🚢 Deployment
 
@@ -165,7 +219,7 @@ Deploy the `dist` folder to:
 - Any static hosting provider
 
 **Important:**
-The `base` property in your `vite.config.ts` (see:
+The `base` property in your `astro.config.mjs` (see:
 ```js
 base: process.env.NODE_ENV === "production" ? "/mdxpress/" : "/",
 ```
@@ -221,12 +275,6 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Create 404.html for GitHub Pages SPA routing
-        working-directory: ./app-template/dist
-        run: |
-          # Copy index.html to 404.html to serve the React app for any missing route
-          cp index.html 404.html
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -246,12 +294,10 @@ jobs:
 
 This workflow will:
 - Build your app in the `app-template` directory
-- Fix any broken symlinks in `example-docs` (for demo and CI)
-- Create a `404.html` for SPA routing
 - Deploy the contents of `dist` to GitHub Pages
 
 **Note:**
-For GitHub Pages, the `base` property in your `vite.config.ts` must be set to the name of your repository (e.g. `base: "/my-repo/"`) so that all links and assets resolve correctly in production.
+For GitHub Pages, the `base` property in your `astro.config.mjs` must be set to the name of your repository (e.g. `base: "/my-repo/"`) so that all links and assets resolve correctly in production.
 
 For more details, see the [GitHub Pages documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages) and the [actions/deploy-pages](https://github.com/actions/deploy-pages) action.
 
@@ -276,6 +322,52 @@ If you encounter `ERR_MODULE_NOT_FOUND` or similar installation errors:
    ```
 
 3. **If using an older Node.js version**, update from [nodejs.org](https://nodejs.org/)
+
+
+## Astro Starter Kit: Minimal
+
+```sh
+npm create astro@latest -- --template minimal
+```
+
+> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+
+### 🚀 Project Structure
+
+Inside of your Astro project, you'll see the following folders and files:
+
+```text
+/
+├── public/
+├── src/
+│   └── pages/
+│       └── index.astro
+└── package.json
+```
+
+Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+
+There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+
+Any static assets, like images, can be placed in the `public/` directory.
+
+### 🧞 Commands
+
+All commands are run from the root of the project, from a terminal:
+
+| Command                   | Action                                           |
+| :------------------------ | :----------------------------------------------- |
+| `npm install`             | Installs dependencies                            |
+| `npm run dev`             | Starts local dev server at `localhost:4321`      |
+| `npm run build`           | Build your production site to `./dist/`          |
+| `npm run preview`         | Preview your build locally, before deploying     |
+| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
+| `npm run astro -- --help` | Get help using the Astro CLI                     |
+
+### 👀 Want to learn more?
+
+Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+
 
 ---
 

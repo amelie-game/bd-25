@@ -1,0 +1,35 @@
+---
+import type { TreeNode } from "../types/TreeNode";
+
+const { nodes } = Astro.props;
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function isActive(slug: string) {
+  const pathname = `${base}/docs/${slug}${import.meta.env.PROD ? "/" : ""}`;
+
+  return Astro.url.pathname === pathname ? "tree-link active" : "tree-link";
+}
+---
+
+<ul class="tree">
+  {
+    nodes.map((node: TreeNode) => (
+      <li class="tree-node">
+        {node.slug ? (
+          <a href={`${base}/docs/${node.slug}`} class={isActive(node.slug)}>
+            <span class="tree-file-icon" />
+            {node.title}
+          </a>
+        ) : (
+          <span class="tree-folder-toggle" aria-expanded="true">
+            <span class="tree-toggle-icon" />
+            <span class="tree-folder-icon" />
+            <span class="tree-folder-name">{node.title}</span>
+          </span>
+        )}
+        {node.children.length > 0 ? <Astro.self nodes={node.children} /> : null}
+      </li>
+    ))
+  }
+</ul>

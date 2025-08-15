@@ -1,0 +1,385 @@
+---
+title: Advanced Examples
+---
+
+import Code from "@components/Code.astro";
+
+# Advanced Examples
+
+This page demonstrates more advanced interactive examples and features.
+
+## React Hooks Example
+
+<Code
+  src={{ "react-ts": {
+    "/App.tsx": `
+  import { useState, useEffect } from 'react'
+
+  export default function App() {
+    const [count, setCount] = useState(0)
+    const [time, setTime] = useState(new Date())
+
+    useEffect(() => {
+      const timer = setInterval(() => {
+        setTime(new Date())
+      }, 1000)
+
+      return () => clearInterval(timer)
+    }, [])
+
+    return (
+      <div style={{ 
+        padding: '20px', 
+        fontFamily: 'Arial, sans-serif',
+        backgroundColor: '#f5f5f5',
+        borderRadius: '8px'
+      }}>
+        <h2>Interactive Counter & Clock</h2>
+        
+        <div style={{ marginBottom: '20px' }}>
+          <p>Current time: {time.toLocaleTimeString()}</p>
+        </div>
+        
+        <div style={{ marginBottom: '20px' }}>
+          <p>Counter: {count}</p>
+          <button 
+            onClick={() => setCount(count + 1)}
+            style={{
+              padding: '8px 16px',
+              margin: '0 5px',
+              backgroundColor: '#007acc',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Increment
+          </button>
+          <button 
+            onClick={() => setCount(count - 1)}
+            style={{
+              padding: '8px 16px',
+              margin: '0 5px',
+              backgroundColor: '#dc3545',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Decrement
+          </button>
+          <button 
+            onClick={() => setCount(0)}
+            style={{
+              padding: '8px 16px',
+              margin: '0 5px',
+              backgroundColor: '#6c757d',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+    )
+  }`
+  } }}
+  options={{
+    showNavigator: false,
+    showTabs: false,
+    showLineNumbers: true,
+    editorHeight: 500
+  }}
+/>
+
+## Data Visualization Example
+
+<Code
+  src={{ "vanilla-ts": {
+    "/index.ts": `
+  interface DataPoint {
+    label: string
+    value: number
+    color: string
+  }
+
+  const data: DataPoint[] = [
+    { label: 'React', value: 35, color: '#61dafb' },
+    { label: 'Vue', value: 25, color: '#4fc08d' },
+    { label: 'Angular', value: 20, color: '#dd0031' },
+    { label: 'Svelte', value: 15, color: '#ff3e00' },
+    { label: 'Other', value: 5, color: '#999999' }
+  ]
+
+  function createChart(data: DataPoint[]) {
+    const total = data.reduce((sum, item) => sum + item.value, 0)
+    
+    const chart = document.createElement('div')
+    chart.style.cssText = \`
+      display: flex;
+      height: 40px;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin: 20px 0;
+    \`
+    
+    data.forEach(item => {
+      const segment = document.createElement('div')
+      const percentage = (item.value / total) * 100
+      
+      segment.style.cssText = \`
+        background-color: \${item.color};
+        width: \${percentage}%;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+      \`
+      
+      if (percentage > 10) {
+        segment.textContent = \`\${item.value}%\`
+      }
+      
+      segment.addEventListener('mouseenter', () => {
+        segment.style.transform = 'scaleY(1.2)'
+        segment.style.zIndex = '10'
+      })
+      
+      segment.addEventListener('mouseleave', () => {
+        segment.style.transform = 'scaleY(1)'
+        segment.style.zIndex = '1'
+      })
+      
+      chart.appendChild(segment)
+    })
+    
+    return chart
+  }
+
+  function createLegend(data: DataPoint[]) {
+    const legend = document.createElement('div')
+    legend.style.cssText = \`
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-top: 20px;
+    \`
+    
+    data.forEach(item => {
+      const legendItem = document.createElement('div')
+      legendItem.style.cssText = \`
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      \`
+      
+      const colorBox = document.createElement('div')
+      colorBox.style.cssText = \`
+        width: 16px;
+        height: 16px;
+        background-color: \${item.color};
+        border-radius: 2px;
+      \`
+      
+      const label = document.createElement('span')
+      label.textContent = \`\${item.label}: \${item.value}%\`
+      label.style.cssText = \`
+        font-size: 14px;
+        color: #333;
+      \`
+      
+      legendItem.appendChild(colorBox)
+      legendItem.appendChild(label)
+      legend.appendChild(legendItem)
+    })
+    
+    return legend
+  }
+
+  // Create the visualization
+  const container = document.createElement('div')
+  container.style.cssText = \`
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+    margin: 20px 0;
+  \`
+
+  const title = document.createElement('h3')
+  title.textContent = 'Frontend Framework Popularity'
+  title.style.cssText = \`
+    margin: 0 0 15px 0;
+    color: #333;
+    text-align: center;
+  \`
+
+  container.appendChild(title)
+  container.appendChild(createChart(data))
+  container.appendChild(createLegend(data))
+
+  document.body.appendChild(container)`
+  }
+  }}
+  options={{
+    showNavigator: false,
+    showTabs: false,
+    showLineNumbers: true,
+    editorHeight: 600
+  }}
+/>
+
+## Form Handling Example
+
+<Code
+  src={{ "react-ts": {
+    "/App.tsx": `
+  import { useState } from 'react'
+
+  interface FormData {
+    name: string
+    email: string
+    message: string
+  }
+
+  export default function App() {
+    const [formData, setFormData] = useState<FormData>({
+      name: '',
+      email: '',
+      message: ''
+    })
+    const [submitted, setSubmitted] = useState(false)
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+      setFormData({
+        ...formData,
+        [e.target.name]: e.target.value
+      })
+    }
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault()
+      setSubmitted(true)
+      setTimeout(() => setSubmitted(false), 3000)
+    }
+
+    const inputStyle = {
+      width: '100%',
+      padding: '10px',
+      margin: '5px 0 15px 0',
+      border: '1px solid #ddd',
+      borderRadius: '4px',
+      fontSize: '14px'
+    }
+
+    const buttonStyle = {
+      backgroundColor: '#007acc',
+      color: 'white',
+      padding: '12px 24px',
+      border: 'none',
+      borderRadius: '4px',
+      cursor: 'pointer',
+      fontSize: '16px'
+    }
+
+    return (
+      <div style={{ 
+        maxWidth: '500px', 
+        margin: '0 auto', 
+        padding: '20px',
+        backgroundColor: '#f9f9f9',
+        borderRadius: '8px'
+      }}>
+        <h2>Contact Form</h2>
+        
+        {submitted ? (
+          <div style={{
+            padding: '15px',
+            backgroundColor: '#d4edda',
+            color: '#155724',
+            border: '1px solid #c3e6cb',
+            borderRadius: '4px',
+            marginBottom: '20px'
+          }}>
+            Thank you, {formData.name}! Your message has been submitted.
+          </div>
+        ) : null}
+        
+        <form onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="name">Name:</label>
+            <input
+              type="text"
+              id="name"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              style={inputStyle}
+              required
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="email">Email:</label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              style={inputStyle}
+              required
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="message">Message:</label>
+            <textarea
+              id="message"
+              name="message"
+              value={formData.message}
+              onChange={handleChange}
+              rows={4}
+              style={inputStyle}
+              required
+            />
+          </div>
+          
+          <button type="submit" style={buttonStyle}>
+            Send Message
+          </button>
+        </form>
+        
+        {formData.name && (
+          <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#e9ecef', borderRadius: '4px' }}>
+            <h4>Live Preview:</h4>
+            <p><strong>Name:</strong> {formData.name}</p>
+            <p><strong>Email:</strong> {formData.email}</p>
+            <p><strong>Message:</strong> {formData.message}</p>
+          </div>
+        )}
+      </div>
+    )
+  }`
+  } }}
+  options={{
+    showNavigator: false,
+    showTabs: false,
+    showLineNumbers: true,
+    editorHeight: 700
+  }}
+/>
+
+---
+
+These examples show the power of combining documentation with interactive code. You can experiment with the code in real-time and see the results immediately!

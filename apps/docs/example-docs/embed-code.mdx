@@ -1,0 +1,84 @@
+---
+title: Code Embedding Examples
+---
+
+import Code from "@components/Code.astro";
+
+# Code Embedding in MDX
+
+## Using Markdown
+
+```tsx
+import HelloReact from "@components/HelloReact.tsx";
+
+export default function Page() {
+  return (
+    <div>
+      <h1>Hello MDX</h1>
+      <HelloReact />
+    </div>
+  );
+}
+```
+
+## Using the Code component
+
+Explore `app-template/src/components/Code.tsx` to see which app templates are available.
+
+### 1. Providing the content of files
+
+```tsx
+<Code src={{ static: {
+  "/index.html": `<!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="UTF-8" />
+    </head>
+    <body>
+      <h1>Hello World</h1>
+    </body>
+  </html>`,
+  }}}
+/>
+```
+
+<Code src={{ static: {
+  "/index.html": `<!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="UTF-8" />
+    </head>
+    <body>
+      <h1>Hello World</h1>
+    </body>
+  </html>`,
+  }}}
+/>
+
+### 2. Providing a local path to load a file from
+
+```tsx
+<Code src={{ static: {
+  "/index.html": new URL("file:///docs/example-docs/hello-local-path.html"),
+  }}}
+/>
+```
+
+<Code src={{ static: {
+  "/index.html": new URL("file:///docs/example-docs/hello-local-path.html"),
+  }}}
+/>
+
+### 3. Fetch from a remote URL
+
+```tsx
+<Code src={{ static: {
+  "/index.html": new URL("https://example.com/index.html"),
+  }}}
+/>
+```
+
+<Code src={{ static: {
+  "/index.html": new URL("https://example.com/index.html"),
+  }}}
+/>
