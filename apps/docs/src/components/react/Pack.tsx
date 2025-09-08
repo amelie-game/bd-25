@@ -319,17 +319,26 @@ function SpriteSheet({ frameConfig, url }: SpriteSheet) {
     <div
       style={{
         display: "flex",
+        flexDirection: "column",
         gap: "1rem",
-        flexWrap: "wrap",
-        alignItems: "stretch",
-        justifyContent: "stretch",
-        justifyItems: "stretch",
-        alignContent: "stretch",
       }}
     >
-      {sprites.map((sprite) => (
-        <Sprite key={sprite.name} {...sprite} />
-      ))}
+      <h4>Spritesheet</h4>
+      <div
+        style={{
+          display: "flex",
+          gap: "1rem",
+          flexWrap: "wrap",
+          alignItems: "stretch",
+          justifyContent: "stretch",
+          justifyItems: "stretch",
+          alignContent: "stretch",
+        }}
+      >
+        {sprites.map((sprite) => (
+          <Sprite key={sprite.name} {...sprite} />
+        ))}
+      </div>
     </div>
   );
 }
