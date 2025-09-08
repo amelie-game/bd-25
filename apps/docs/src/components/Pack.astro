@@ -1,0 +1,7 @@
+---
+import React_Pack, { type Props } from "./react/Pack.tsx";
+
+const props = Astro.props as Props;
+---
+
+<React_Pack client:only="react" {...props} />
