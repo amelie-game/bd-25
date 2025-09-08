@@ -36,9 +36,9 @@ export class TitleScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
 
     newGameBtn.on("pointerdown", () => {
-      // TODO: Start new game scene
       continueBtn.setColor("#0ff");
       newGameBtn.setColor("#ff0");
+      this.scene.start("GameScene");
     });
 
     continueBtn.on("pointerdown", () => {
