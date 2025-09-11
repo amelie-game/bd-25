@@ -5,6 +5,31 @@ export class TitleScene extends Phaser.Scene {
     super("TitleScene");
   }
 
+  preload() {
+    // Simple loading progress bar
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const progressBox = this.add.graphics();
+    const progressBar = this.add.graphics();
+    progressBox.fillStyle(0x222222, 0.8);
+    progressBox.fillRect(width / 2 - 160, height / 2 - 12, 320, 24);
+
+    this.load.on("progress", (value: number) => {
+      progressBar.clear();
+      progressBar.fillStyle(0x00ffff, 1);
+      progressBar.fillRect(width / 2 - 150, height / 2 - 8, 300 * value, 16);
+    });
+
+    this.load.on("complete", () => {
+      progressBar.destroy();
+      progressBox.destroy();
+    });
+
+    // Load all atlases & spritesheets defined in the pack file
+    // The pack file is at /assets/pack.json relative to index.html
+    this.load.pack("main", "assets/pack.json");
+  }
+
   create() {
     const width = this.sys.game.config.width as number;
     const height = this.sys.game.config.height as number;
