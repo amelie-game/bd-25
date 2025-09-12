@@ -20,6 +20,8 @@ export class GameScene extends Phaser.Scene {
   private maxZoom = 1;
   private lastPinchDist: number | null = null;
   private cameraMarginFraction = 0.1; // dead-zone margin fraction
+  private highlightGraphics!: Phaser.GameObjects.Graphics;
+  private highlightedTiles: { x: number; y: number }[] = [];
   // Camera always follows player; panning removed per latest requirement
 
   constructor() {
@@ -29,6 +31,9 @@ export class GameScene extends Phaser.Scene {
   preload() {}
 
   create() {
+    // Highlight overlay graphics
+    this.highlightGraphics = this.add.graphics();
+    this.highlightGraphics.setDepth(10);
     this.camera = this.cameras.main;
     this.camera.roundPixels = true;
 
@@ -92,6 +97,9 @@ export class GameScene extends Phaser.Scene {
       this.groundLayer.setDepth(0);
     }
     this.player.setDepth(1);
+
+    // Center camera on player at start
+    this.camera.centerOn(this.player.x, this.player.y);
 
     // (Keyboard cursors removed for now)
 
@@ -164,7 +172,13 @@ export class GameScene extends Phaser.Scene {
 
   private setZoom(z: number) {
     const clamped = Phaser.Math.Clamp(z, this.minZoom, this.maxZoom);
+    // Get player center before zoom
+    const playerX = this.player.x;
+    const playerY = this.player.y;
+    // Set zoom
     this.camera.setZoom(clamped);
+    // Center camera on player
+    this.camera.centerOn(playerX, playerY);
     this.clampCamera();
   }
 
@@ -180,7 +194,156 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
-    // Helper to get animation key from assets map
+    // Highlight logic: compute and draw highlights around player
+    this.updateHighlights();
+
+    // Player movement logic
+    if (this.target) {
+      const dx = this.target.x - this.player.x;
+      const dy = this.target.y - this.player.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 2) {
+        // Move towards target at moveSpeed (pixels/sec)
+        const move = (this.moveSpeed * delta) / 1000;
+        const nx = this.player.x + (dx / dist) * Math.min(move, dist);
+        const ny = this.player.y + (dy / dist) * Math.min(move, dist);
+        // Determine direction for animation
+        let dir: "up" | "down" | "left" | "right" = this.lastDirection;
+        if (Math.abs(dx) > Math.abs(dy)) {
+          dir = dx > 0 ? "right" : "left";
+        } else if (Math.abs(dy) > 0) {
+          dir = dy > 0 ? "down" : "up";
+        }
+        this.lastDirection = dir;
+        // Play walk animation
+        const getAnim = (
+          type: "walk" | "idle",
+          dir: "right" | "left" | "up" | "down"
+        ) => {
+          if (type === "walk") {
+            switch (dir) {
+              case "right":
+                return assets.amelie.animations.AmelieWalkRight;
+              case "left":
+                return assets.amelie.animations.AmelieWalkLeft;
+              case "up":
+                return assets.amelie.animations.AmelieWalkUp;
+              case "down":
+                return assets.amelie.animations.AmelieWalkDown;
+            }
+          } else {
+            switch (dir) {
+              case "right":
+                return assets.amelie.animations.AmelieIdleRight;
+              case "left":
+                return assets.amelie.animations.AmelieIdleLeft;
+              case "up":
+                return assets.amelie.animations.AmelieIdleUp;
+              case "down":
+                return assets.amelie.animations.AmelieIdleDown;
+            }
+          }
+        };
+        this.player.play(getAnim("walk", dir), true);
+        this.player.x = nx;
+        this.player.y = ny;
+      } else {
+        // Arrived at target
+        this.player.x = this.target.x;
+        this.player.y = this.target.y;
+        // Play idle animation facing last direction
+        const getAnim = (
+          type: "walk" | "idle",
+          dir: "right" | "left" | "up" | "down"
+        ) => {
+          if (type === "walk") {
+            switch (dir) {
+              case "right":
+                return assets.amelie.animations.AmelieWalkRight;
+              case "left":
+                return assets.amelie.animations.AmelieWalkLeft;
+              case "up":
+                return assets.amelie.animations.AmelieWalkUp;
+              case "down":
+                return assets.amelie.animations.AmelieWalkDown;
+            }
+          } else {
+            switch (dir) {
+              case "right":
+                return assets.amelie.animations.AmelieIdleRight;
+              case "left":
+                return assets.amelie.animations.AmelieIdleLeft;
+              case "up":
+                return assets.amelie.animations.AmelieIdleUp;
+              case "down":
+                return assets.amelie.animations.AmelieIdleDown;
+            }
+          }
+        };
+        this.player.play(getAnim("idle", this.lastDirection), true);
+        this.target = null;
+      }
+      // Camera always centers on player after movement
+      this.camera.centerOn(this.player.x, this.player.y);
+      this.clampCamera();
+    }
+  }
+
+  private updateHighlights() {
+    if (!this.groundLayer) return;
+    // Compute player tile position
+    const px = Math.floor(this.player.x / TILE_SIZE);
+    const py = Math.floor(this.player.y / TILE_SIZE);
+    // 8 directions
+    const dirs = [
+      { dx: 0, dy: -1, dir: "up" }, // N
+      { dx: 1, dy: -1, dir: "up" }, // NE
+      { dx: 1, dy: 0, dir: "right" }, // E
+      { dx: 1, dy: 1, dir: "down" }, // SE
+      { dx: 0, dy: 1, dir: "down" }, // S
+      { dx: -1, dy: 1, dir: "down" }, // SW
+      { dx: -1, dy: 0, dir: "left" }, // W
+      { dx: -1, dy: -1, dir: "up" }, // NW
+    ];
+    this.highlightedTiles = [];
+    for (const d of dirs) {
+      const tx = px + d.dx;
+      const ty = py + d.dy;
+      if (tx >= 0 && tx < WORLD_COLS && ty >= 0 && ty < WORLD_ROWS) {
+        // Don't highlight the player tile
+        if (!(tx === px && ty === py)) {
+          this.highlightedTiles.push({ x: tx, y: ty });
+        }
+      }
+    }
+    // Draw highlights
+    this.highlightGraphics.clear();
+    this.highlightGraphics.lineStyle(2, 0xff0000, 0.7);
+    this.highlightGraphics.fillStyle(0xff0000, 0.15);
+    for (const t of this.highlightedTiles) {
+      const sx = t.x * TILE_SIZE;
+      const sy = t.y * TILE_SIZE;
+      this.highlightGraphics.strokeRect(sx, sy, TILE_SIZE, TILE_SIZE);
+      this.highlightGraphics.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+    }
+  }
+
+  private handleBlockPlacement(tx: number, ty: number) {
+    // 1. PC does not walk (handled by not setting isDragging)
+    // 2. PC turns to the highlighted tile
+    const px = Math.floor(this.player.x / TILE_SIZE);
+    const py = Math.floor(this.player.y / TILE_SIZE);
+    const dx = tx - px;
+    const dy = ty - py;
+    // Determine direction
+    let dir: "up" | "down" | "left" | "right" = this.lastDirection;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      dir = dx > 0 ? "right" : "left";
+    } else if (Math.abs(dy) > 0) {
+      dir = dy > 0 ? "down" : "up";
+    }
+    this.lastDirection = dir;
+    // Play idle animation facing that direction
     const getAnim = (
       type: "walk" | "idle",
       dir: "right" | "left" | "up" | "down"
@@ -209,100 +372,16 @@ export class GameScene extends Phaser.Scene {
         }
       }
     };
-
-    // Keyboard movement fallback
-    // Pointer drag movement update (PoC logic: horizontal then vertical)
-    if (this.isDragging && this.target) {
-      const feetX = this.player.x;
-      const feetY = this.player.y; // origin already biased to feet
-      const dx = this.target.x - feetX;
-      const dy = this.target.y - feetY;
-      const step = this.moveSpeed * (delta / 1000);
-      const snap = 2; // pixel threshold for snapping to target
-      let moved = false;
-
-      // Attempt horizontal movement first (classic Zelda style), but only if walkable
-      if (Math.abs(dx) > snap) {
-        const moveX = Math.sign(dx) * Math.min(step, Math.abs(dx));
-        const newX = feetX + moveX;
-        if (this.isWalkable(newX, feetY)) {
-          this.player.x = newX;
-          this.lastDirection = dx < 0 ? "left" : "right";
-          this.player.play(getAnim("walk", this.lastDirection), true);
-          moved = true;
-        }
-      }
-      // If horizontal either done or blocked, try vertical
-      if (!moved && Math.abs(dy) > snap) {
-        const moveY = Math.sign(dy) * Math.min(step, Math.abs(dy));
-        const newY = feetY + moveY;
-        if (this.isWalkable(feetX, newY)) {
-          this.player.y = newY;
-          this.lastDirection = dy < 0 ? "up" : "down";
-          this.player.play(getAnim("walk", this.lastDirection), true);
-          moved = true;
-        }
-      }
-
-      const arrived = Math.abs(dx) <= snap && Math.abs(dy) <= snap;
-      if (!moved) {
-        if (arrived) {
-          // Snap to target if target tile itself is walkable
-          if (this.isWalkable(this.target.x, this.target.y)) {
-            this.player.x = this.target.x;
-            this.player.y = this.target.y;
-          }
-          this.player.play(getAnim("idle", this.lastDirection), true);
-          this.isDragging = false; // stop further processing
-        } else {
-          // Path blocked (likely water). If target itself isn't walkable, cancel drag.
-          if (!this.isWalkable(this.target.x, this.target.y)) {
-            this.isDragging = false;
-            this.target = null;
-            this.player.play(getAnim("idle", this.lastDirection), true);
-          } else {
-            // Still en route but blocked this frame (corner); stay idle anim facing last direction
-            this.player.play(getAnim("idle", this.lastDirection), true);
-          }
-        }
-      }
-    } else {
-      this.player.play(getAnim("idle", this.lastDirection), true);
+    this.player.play(getAnim("idle", dir), true);
+    // 3. Place a "Red" block at that location
+    if (this.groundLayer) {
+      this.groundLayer.putTileAt(Number(assets.blocks.sprites.Red), tx, ty);
     }
-
-    // Camera dead-zone handling
-    this.updateCameraDeadZone();
   }
 
   // Animations are now created in TitleScene using createFromAseprite
 
-  private updateCameraDeadZone() {
-    const cam = this.camera;
-    const viewW = cam.width / cam.zoom;
-    const viewH = cam.height / cam.zoom;
-    const marginX = viewW * this.cameraMarginFraction;
-    const marginY = viewH * this.cameraMarginFraction;
-    const leftEdge = cam.scrollX + marginX;
-    const rightEdge = cam.scrollX + viewW - marginX;
-    const topEdge = cam.scrollY + marginY;
-    const bottomEdge = cam.scrollY + viewH - marginY;
-    let changed = false;
-    if (this.player.x < leftEdge) {
-      cam.scrollX = this.player.x - marginX;
-      changed = true;
-    } else if (this.player.x > rightEdge) {
-      cam.scrollX = this.player.x + marginX - viewW;
-      changed = true;
-    }
-    if (this.player.y < topEdge) {
-      cam.scrollY = this.player.y - marginY;
-      changed = true;
-    } else if (this.player.y > bottomEdge) {
-      cam.scrollY = this.player.y + marginY - viewH;
-      changed = true;
-    }
-    if (changed) this.clampCamera();
-  }
+  // Camera dead-zone logic removed: camera now always centers on player after movement.
 
   private screenToWorld(screenX: number, screenY: number) {
     const cam = this.camera;
@@ -485,6 +564,18 @@ export class GameScene extends Phaser.Scene {
   private setupPointerControls() {
     // Use Phaser's pointer events to get accurate worldX/worldY regardless of zoom/scroll
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      // Check if pointer is on a highlighted tile
+      const tx = Math.floor(p.worldX / TILE_SIZE);
+      const ty = Math.floor(p.worldY / TILE_SIZE);
+      const highlightIdx = this.highlightedTiles.findIndex(
+        (t) => t.x === tx && t.y === ty
+      );
+      if (highlightIdx !== -1) {
+        // Place block and turn to face
+        this.handleBlockPlacement(tx, ty);
+        return;
+      }
+      // Otherwise, normal movement
       if (!this.isWalkable(p.worldX, p.worldY)) return; // ignore clicks on water
       this.isDragging = true;
       this.target = { x: p.worldX, y: p.worldY };
@@ -503,7 +594,6 @@ export class GameScene extends Phaser.Scene {
       this.target = null;
     });
   }
-
   // Determine if a world position is walkable (currently grass tile index 10)
   private isWalkable(worldX: number, worldY: number): boolean {
     if (!this.groundLayer) return false;
