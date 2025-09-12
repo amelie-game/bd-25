@@ -7,7 +7,6 @@ const WORLD_ROWS = 100;
 
 export class GameScene extends Phaser.Scene {
   private groundLayer!: Phaser.Tilemaps.TilemapLayer;
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private camera!: Phaser.Cameras.Scene2D.Camera;
   private player!: Phaser.GameObjects.Sprite;
   private isDragging = false;
@@ -66,47 +65,19 @@ export class GameScene extends Phaser.Scene {
       // (Should not happen if tileset is valid.)
     } else {
       this.groundLayer = layer as Phaser.Tilemaps.TilemapLayer;
-      this.groundLayer.fill(10, 0, 0, WORLD_COLS, WORLD_ROWS);
+      // Generate island terrain (grass & water)
+      this.groundLayer.fill(9, 0, 0, WORLD_COLS, WORLD_ROWS); // start as water
+      this.generateIsland();
       this.groundLayer.setDepth(0);
     }
     this.player.setDepth(1);
 
-    // Keyboard cursors (optional fallback)
-    // Create cursor keys (keyboard plugin should exist in a standard Phaser scene, but add fallback)
-    this.cursors = this.input.keyboard
-      ? this.input.keyboard.createCursorKeys()
-      : ({} as any);
+    // (Keyboard cursors removed for now)
 
-    // Pointer drag movement (PoC style)
+    // Pointer drag movement using Phaser input (zoom aware)
+    this.setupPointerControls();
+
     const canvas = this.game.canvas;
-    let pointerMoveHandler: ((ev: PointerEvent) => void) | null = null;
-    let pointerUpHandler: (() => void) | null = null;
-    canvas.addEventListener("pointerdown", (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const localX = e.clientX - rect.left;
-      const localY = e.clientY - rect.top;
-      const world = this.screenToWorld(localX, localY);
-      this.isDragging = true;
-      this.target = { x: world.x, y: world.y };
-      pointerMoveHandler = (ev: PointerEvent) => {
-        if (this.isDragging) {
-          const lx = ev.clientX - rect.left;
-          const ly = ev.clientY - rect.top;
-          const w = this.screenToWorld(lx, ly);
-          this.target = { x: w.x, y: w.y };
-        }
-      };
-      canvas.addEventListener("pointermove", pointerMoveHandler);
-      pointerUpHandler = () => {
-        this.isDragging = false;
-        this.target = null;
-        if (pointerMoveHandler)
-          canvas.removeEventListener("pointermove", pointerMoveHandler);
-        if (pointerUpHandler)
-          canvas.removeEventListener("pointerup", pointerUpHandler);
-      };
-      canvas.addEventListener("pointerup", pointerUpHandler, { once: true });
-    });
 
     // Wheel zoom (desktop)
     // (canvas already defined above)
@@ -190,38 +161,61 @@ export class GameScene extends Phaser.Scene {
   update(time: number, delta: number) {
     // Keyboard movement fallback
     // Pointer drag movement update (PoC logic: horizontal then vertical)
-    const previousX = this.player.x;
-    const previousY = this.player.y;
     if (this.isDragging && this.target) {
-      const dx = this.target.x - this.player.x;
-      const dy = this.target.y - this.player.y;
+      const feetX = this.player.x;
+      const feetY = this.player.y; // origin already biased to feet
+      const dx = this.target.x - feetX;
+      const dy = this.target.y - feetY;
       const step = this.moveSpeed * (delta / 1000);
-      const snap = 2; // pixel threshold
+      const snap = 2; // pixel threshold for snapping to target
+      let moved = false;
+
+      // Attempt horizontal movement first (classic Zelda style), but only if walkable
       if (Math.abs(dx) > snap) {
-        // Horizontal movement first
-        if (Math.abs(dx) < step) {
-          this.player.x = this.target.x;
-        } else {
-          this.player.x += step * Math.sign(dx);
+        const moveX = Math.sign(dx) * Math.min(step, Math.abs(dx));
+        const newX = feetX + moveX;
+        if (this.isWalkable(newX, feetY)) {
+          this.player.x = newX;
+          this.lastDirection = dx < 0 ? "left" : "right";
+          this.player.play(`walk-${this.lastDirection}`, true);
+          moved = true;
         }
-        this.lastDirection = dx < 0 ? "left" : "right";
-        this.player.play(`walk-${this.lastDirection}`, true);
-      } else if (Math.abs(dy) > snap) {
-        if (Math.abs(dy) < step) {
-          this.player.y = this.target.y;
-        } else {
-          this.player.y += step * Math.sign(dy);
+      }
+      // If horizontal either done or blocked, try vertical
+      if (!moved && Math.abs(dy) > snap) {
+        const moveY = Math.sign(dy) * Math.min(step, Math.abs(dy));
+        const newY = feetY + moveY;
+        if (this.isWalkable(feetX, newY)) {
+          this.player.y = newY;
+          this.lastDirection = dy < 0 ? "up" : "down";
+          this.player.play(`walk-${this.lastDirection}`, true);
+          moved = true;
         }
-        this.lastDirection = dy < 0 ? "up" : "down";
-        this.player.play(`walk-${this.lastDirection}`, true);
-      } else {
-        // Arrived
-        this.player.x = this.target.x;
-        this.player.y = this.target.y;
-        this.player.play(`idle-${this.lastDirection}`, true);
+      }
+
+      const arrived = Math.abs(dx) <= snap && Math.abs(dy) <= snap;
+      if (!moved) {
+        if (arrived) {
+          // Snap to target if target tile itself is walkable
+          if (this.isWalkable(this.target.x, this.target.y)) {
+            this.player.x = this.target.x;
+            this.player.y = this.target.y;
+          }
+          this.player.play(`idle-${this.lastDirection}`, true);
+          this.isDragging = false; // stop further processing
+        } else {
+          // Path blocked (likely water). If target itself isn't walkable, cancel drag.
+          if (!this.isWalkable(this.target.x, this.target.y)) {
+            this.isDragging = false;
+            this.target = null;
+            this.player.play(`idle-${this.lastDirection}`, true);
+          } else {
+            // Still en route but blocked this frame (corner); stay idle anim facing last direction
+            this.player.play(`idle-${this.lastDirection}`, true);
+          }
+        }
       }
     } else {
-      // Idle
       this.player.play(`idle-${this.lastDirection}`, true);
     }
 
@@ -290,5 +284,205 @@ export class GameScene extends Phaser.Scene {
       x: cam.scrollX + screenX / cam.zoom,
       y: cam.scrollY + screenY / cam.zoom,
     };
+  }
+
+  // --- World Generation Helpers ---
+  private generateIsland() {
+    if (!this.groundLayer) return;
+    const GRASS = 10; // tileset index for grass
+    const WATER = 9; // tileset index for water
+    const width = WORLD_COLS;
+    const height = WORLD_ROWS;
+    const total = width * height;
+    // Target grass ratio between 0.60 and 0.80
+    const targetRatio = Phaser.Math.FloatBetween(0.63, 0.77);
+    const cx = width / 2;
+    const cy = height / 2;
+    // Random elliptical radii (gives large-scale variety)
+    const baseArea = targetRatio * total;
+    const baseRadius = Math.sqrt(baseArea / Math.PI);
+    const radX = baseRadius * Phaser.Math.FloatBetween(0.9, 1.35);
+    const radY = baseRadius * Phaser.Math.FloatBetween(0.85, 1.25);
+
+    // Layered value noise parameters
+    const off1x = Math.random() * 1000;
+    const off1y = Math.random() * 1000;
+    const off2x = Math.random() * 2000;
+    const off2y = Math.random() * 2000;
+    const off3x = Math.random() * 3000;
+    const off3y = Math.random() * 3000;
+    const s1 = Phaser.Math.FloatBetween(0.025, 0.045); // large features
+    const s2 = s1 * 2.3; // medium
+    const s3 = s1 * 5.1; // small
+    const noiseScale = Phaser.Math.FloatBetween(0.32, 0.4); // influence of noise on shoreline
+
+    // Prepare mask
+    const mask: boolean[][] = Array.from({ length: width }, () =>
+      Array<boolean>(height).fill(false)
+    );
+    let grassCount = 0;
+
+    const valueNoise = (x: number, y: number): number => {
+      // 2D value noise with bilinear interpolation & smoothstep
+      const xi = Math.floor(x);
+      const yi = Math.floor(y);
+      const xf = x - xi;
+      const yf = y - yi;
+      const smooth = (t: number) => t * t * (3 - 2 * t);
+      const rnd = (ix: number, iy: number) => {
+        let n = ix * 374761393 + iy * 668265263;
+        n = (n ^ (n >> 13)) * 1274126177;
+        n = n ^ (n >> 16);
+        return (n & 0xffffffff) / 0xffffffff; // 0..1
+      };
+      const v00 = rnd(xi, yi);
+      const v10 = rnd(xi + 1, yi);
+      const v01 = rnd(xi, yi + 1);
+      const v11 = rnd(xi + 1, yi + 1);
+      const sx = smooth(xf);
+      const sy = smooth(yf);
+      const ix0 = Phaser.Math.Linear(v00, v10, sx);
+      const ix1 = Phaser.Math.Linear(v01, v11, sx);
+      const v = Phaser.Math.Linear(ix0, ix1, sy);
+      return v * 2 - 1; // -1..1
+    };
+
+    for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) {
+        const dx = x - cx + 0.5;
+        const dy = y - cy + 0.5;
+        const distNorm = Math.sqrt(
+          (dx * dx) / (radX * radX) + (dy * dy) / (radY * radY)
+        );
+        // Layered coherent noise (multi-octave)
+        const n1 = valueNoise(x * s1 + off1x, y * s1 + off1y);
+        const n2 = valueNoise(x * s2 + off2x, y * s2 + off2y);
+        const n3 = valueNoise(x * s3 + off3x, y * s3 + off3y);
+        const layered = 0.55 * n1 + 0.3 * n2 + 0.15 * n3; // already in -1..1 range weighting
+        // Adjust shoreline: subtract noise so negative noise pushes outward (larger island in some lobes)
+        const shape = distNorm - layered * noiseScale;
+        const inside = shape < 1;
+        if (inside) {
+          mask[x][y] = true;
+          grassCount++;
+        }
+      }
+    }
+
+    // Edge smoothing (same approach as before)
+    const dirs8 = [
+      [-1, -1],
+      [0, -1],
+      [1, -1],
+      [-1, 0],
+      /*self*/ [1, 0],
+      [-1, 1],
+      [0, 1],
+      [1, 1],
+    ];
+    const smoothPass = () => {
+      const copy = mask.map((c) => c.slice());
+      for (let x = 1; x < width - 1; x++) {
+        for (let y = 1; y < height - 1; y++) {
+          let count = 0;
+          for (const [dx, dy] of dirs8) if (copy[x + dx][y + dy]) count++;
+          if (count >= 5) mask[x][y] = true;
+          else if (count <= 2) mask[x][y] = false;
+        }
+      }
+    };
+    smoothPass();
+    smoothPass();
+
+    // Recount after smoothing
+    grassCount = 0;
+    for (let x = 0; x < width; x++)
+      for (let y = 0; y < height; y++) if (mask[x][y]) grassCount++;
+    let ratio = grassCount / total;
+
+    // Ratio adjustment to stay within [0.6,0.8]
+    if (ratio < 0.6 || ratio > 0.8) {
+      const edgeGrass: Array<[number, number]> = [];
+      const edgeWater: Array<[number, number]> = [];
+      const dirs4 = [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ];
+      for (let x = 1; x < width - 1; x++) {
+        for (let y = 1; y < height - 1; y++) {
+          const isGrass = mask[x][y];
+          let boundary = false;
+          for (const [dx, dy] of dirs4) {
+            const nx = x + dx,
+              ny = y + dy;
+            if (mask[nx][ny] !== isGrass) {
+              boundary = true;
+              break;
+            }
+          }
+          if (boundary) (isGrass ? edgeGrass : edgeWater).push([x, y]);
+        }
+      }
+      if (ratio < 0.6) {
+        Phaser.Utils.Array.Shuffle(edgeWater);
+        for (const [x, y] of edgeWater) {
+          if (ratio >= 0.6) break;
+          if (!mask[x][y]) {
+            mask[x][y] = true;
+            grassCount++;
+            ratio = grassCount / total;
+          }
+        }
+      } else {
+        Phaser.Utils.Array.Shuffle(edgeGrass);
+        for (const [x, y] of edgeGrass) {
+          if (ratio <= 0.8) break;
+          if (mask[x][y]) {
+            mask[x][y] = false;
+            grassCount--;
+            ratio = grassCount / total;
+          }
+        }
+      }
+    }
+
+    // Apply tiles
+    for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) {
+        this.groundLayer.putTileAt(mask[x][y] ? GRASS : WATER, x, y);
+      }
+    }
+  }
+
+  private setupPointerControls() {
+    // Use Phaser's pointer events to get accurate worldX/worldY regardless of zoom/scroll
+    this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      if (!this.isWalkable(p.worldX, p.worldY)) return; // ignore clicks on water
+      this.isDragging = true;
+      this.target = { x: p.worldX, y: p.worldY };
+    });
+    this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
+      if (!this.isDragging) return;
+      if (!this.isWalkable(p.worldX, p.worldY)) return; // don't update target onto water
+      this.target = { x: p.worldX, y: p.worldY };
+    });
+    this.input.on("pointerup", () => {
+      this.isDragging = false;
+      this.target = null;
+    });
+    this.input.on("pointerupoutside", () => {
+      this.isDragging = false;
+      this.target = null;
+    });
+  }
+
+  // Determine if a world position is walkable (currently grass tile index 10)
+  private isWalkable(worldX: number, worldY: number): boolean {
+    if (!this.groundLayer) return false;
+    const tile = this.groundLayer.getTileAtWorldXY(worldX, worldY, true);
+    if (!tile) return false;
+    return tile.index === 10; // grass
   }
 }
