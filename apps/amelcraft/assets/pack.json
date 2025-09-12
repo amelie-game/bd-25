@@ -1,31 +1,31 @@
 {
   "files": [
     {
-      "type": "atlas",
+      "type": "aseprite",
       "key": "amelie",
       "textureURL": "assets/characters/amelie-party-hat.png",
       "atlasURL": "assets/characters/amelie.aseprite.json"
     },
     {
-      "type": "atlas",
+      "type": "aseprite",
       "key": "cynthia",
       "textureURL": "assets/characters/cynthia-party-hat.png",
       "atlasURL": "assets/characters/cynthia.aseprite.json"
     },
     {
-      "type": "atlas",
+      "type": "aseprite",
       "key": "mila",
       "textureURL": "assets/characters/mila-party-hat.png",
       "atlasURL": "assets/characters/mila.aseprite.json"
     },
     {
-      "type": "atlas",
+      "type": "aseprite",
       "key": "tobias",
       "textureURL": "assets/characters/tobias-party-hat.png",
       "atlasURL": "assets/characters/tobias.aseprite.json"
     },
     {
-      "type": "atlas",
+      "type": "aseprite",
       "key": "objects",
       "textureURL": "assets/objects/objects.png",
       "atlasURL": "assets/objects/objects.aseprite.json"
@@ -34,6 +34,7 @@
       "type": "spritesheet",
       "key": "blocks",
       "url": "assets/tilesets/blocks.png",
+      "atlasURL": "assets/tilesets/blocks.aseprite.json",
       "frameConfig": { "frameWidth": 48, "frameHeight": 48 }
     }
   ]

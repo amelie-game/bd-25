@@ -33,6 +33,7 @@ export default function Pack({ data, basePath = "" }: Props) {
 function PackFile({ file, basePath }: { file: PackFile; basePath: string }) {
   const content = (() => {
     switch (file.type) {
+      case "aseprite":
       case "atlas":
         return (
           <Atlas

@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { TILE_SIZE } from "../main";
+import { assets } from "../assets";
 
 // Dimensions for the simple tile world
 const WORLD_COLS = 100;
@@ -34,12 +35,19 @@ export class GameScene extends Phaser.Scene {
     // Player sprite using amelie atlas (preloaded in TitleScene)
     const startX = (WORLD_COLS / 2) * TILE_SIZE + TILE_SIZE / 2;
     const startY = (WORLD_ROWS / 2) * TILE_SIZE + TILE_SIZE / 2;
-    this.player = this.add.sprite(startX, startY, "amelie", "50"); // default to first walk-right frame
+    // Use the first walk-right frame from assets.amelie.animations or fallback to frame index "50"
+    const defaultFrame = "50";
+    this.player = this.add.sprite(
+      startX,
+      startY,
+      assets.amelie.key,
+      defaultFrame
+    );
     this.player.setOrigin(0.5, 0.75); // feet alignment
     // Disable smoothing (important for crisp pixel art)
     (this.player as any).setSmooth && (this.player as any).setSmooth(false);
-    this.createPlayerAnimations();
-    this.player.play("idle-down");
+    // Animations are now created in TitleScene using createFromAseprite
+    this.player.play(assets.amelie.animations.AmelieIdleDown);
 
     // Manual camera control (dead-zone) instead of continuous follow
     this.camera.setBounds(0, 0, this.worldPixelWidth, this.worldPixelHeight);
@@ -47,18 +55,25 @@ export class GameScene extends Phaser.Scene {
     // Initial zoom set to 1 clamped in range
     this.camera.setZoom(Phaser.Math.Clamp(1, this.minZoom, this.maxZoom));
 
-    // Create ground tilemap layer filled with tile index 10
+    // Create ground tilemap layer filled with tile index for water
     const map = this.make.tilemap({
       tileWidth: TILE_SIZE,
       tileHeight: TILE_SIZE,
       width: WORLD_COLS,
       height: WORLD_ROWS,
     });
-    const tileset = map.addTilesetImage("blocks");
+    const tileset = map.addTilesetImage(assets.blocks.key);
     // Fallback: if not found, add manually from cache texture
     const ts =
       tileset ??
-      map.addTilesetImage("blocks", undefined, TILE_SIZE, TILE_SIZE, 0, 0);
+      map.addTilesetImage(
+        assets.blocks.key,
+        undefined,
+        TILE_SIZE,
+        TILE_SIZE,
+        0,
+        0
+      );
     const layer = map.createBlankLayer("ground", ts!);
     if (!layer) {
       // Fallback: if layer creation failed, skip silently
@@ -66,7 +81,13 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.groundLayer = layer as Phaser.Tilemaps.TilemapLayer;
       // Generate island terrain (grass & water)
-      this.groundLayer.fill(9, 0, 0, WORLD_COLS, WORLD_ROWS); // start as water
+      this.groundLayer.fill(
+        Number(assets.blocks.sprites.Water),
+        0,
+        0,
+        WORLD_COLS,
+        WORLD_ROWS
+      ); // start as water
       this.generateIsland();
       this.groundLayer.setDepth(0);
     }
@@ -159,6 +180,36 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
+    // Helper to get animation key from assets map
+    const getAnim = (
+      type: "walk" | "idle",
+      dir: "right" | "left" | "up" | "down"
+    ) => {
+      if (type === "walk") {
+        switch (dir) {
+          case "right":
+            return assets.amelie.animations.AmelieWalkRight;
+          case "left":
+            return assets.amelie.animations.AmelieWalkLeft;
+          case "up":
+            return assets.amelie.animations.AmelieWalkUp;
+          case "down":
+            return assets.amelie.animations.AmelieWalkDown;
+        }
+      } else {
+        switch (dir) {
+          case "right":
+            return assets.amelie.animations.AmelieIdleRight;
+          case "left":
+            return assets.amelie.animations.AmelieIdleLeft;
+          case "up":
+            return assets.amelie.animations.AmelieIdleUp;
+          case "down":
+            return assets.amelie.animations.AmelieIdleDown;
+        }
+      }
+    };
+
     // Keyboard movement fallback
     // Pointer drag movement update (PoC logic: horizontal then vertical)
     if (this.isDragging && this.target) {
@@ -177,7 +228,7 @@ export class GameScene extends Phaser.Scene {
         if (this.isWalkable(newX, feetY)) {
           this.player.x = newX;
           this.lastDirection = dx < 0 ? "left" : "right";
-          this.player.play(`walk-${this.lastDirection}`, true);
+          this.player.play(getAnim("walk", this.lastDirection), true);
           moved = true;
         }
       }
@@ -188,7 +239,7 @@ export class GameScene extends Phaser.Scene {
         if (this.isWalkable(feetX, newY)) {
           this.player.y = newY;
           this.lastDirection = dy < 0 ? "up" : "down";
-          this.player.play(`walk-${this.lastDirection}`, true);
+          this.player.play(getAnim("walk", this.lastDirection), true);
           moved = true;
         }
       }
@@ -201,54 +252,29 @@ export class GameScene extends Phaser.Scene {
             this.player.x = this.target.x;
             this.player.y = this.target.y;
           }
-          this.player.play(`idle-${this.lastDirection}`, true);
+          this.player.play(getAnim("idle", this.lastDirection), true);
           this.isDragging = false; // stop further processing
         } else {
           // Path blocked (likely water). If target itself isn't walkable, cancel drag.
           if (!this.isWalkable(this.target.x, this.target.y)) {
             this.isDragging = false;
             this.target = null;
-            this.player.play(`idle-${this.lastDirection}`, true);
+            this.player.play(getAnim("idle", this.lastDirection), true);
           } else {
             // Still en route but blocked this frame (corner); stay idle anim facing last direction
-            this.player.play(`idle-${this.lastDirection}`, true);
+            this.player.play(getAnim("idle", this.lastDirection), true);
           }
         }
       }
     } else {
-      this.player.play(`idle-${this.lastDirection}`, true);
+      this.player.play(getAnim("idle", this.lastDirection), true);
     }
 
     // Camera dead-zone handling
     this.updateCameraDeadZone();
   }
 
-  private createPlayerAnimations() {
-    // Helper to create animation from numeric frame range
-    const make = (
-      key: string,
-      start: number,
-      end: number,
-      frameRate = 8,
-      repeat = -1
-    ) => {
-      if (this.anims.exists(key)) return;
-      const frames: Phaser.Types.Animations.AnimationFrame[] = [];
-      for (let i = start; i <= end; i++)
-        frames.push({ key: "amelie", frame: i.toString() });
-      this.anims.create({ key, frames, frameRate, repeat });
-    };
-    // Idle (loop slowly)
-    make("idle-right", 10, 15, 6);
-    make("idle-up", 20, 25, 6);
-    make("idle-left", 30, 35, 6);
-    make("idle-down", 40, 45, 6);
-    // Walk (faster)
-    make("walk-right", 50, 55, 10);
-    make("walk-up", 60, 65, 10);
-    make("walk-left", 70, 75, 10);
-    make("walk-down", 80, 85, 10);
-  }
+  // Animations are now created in TitleScene using createFromAseprite
 
   private updateCameraDeadZone() {
     const cam = this.camera;
@@ -289,8 +315,8 @@ export class GameScene extends Phaser.Scene {
   // --- World Generation Helpers ---
   private generateIsland() {
     if (!this.groundLayer) return;
-    const GRASS = 10; // tileset index for grass
-    const WATER = 9; // tileset index for water
+    const GRASS = Number(assets.blocks.sprites.Grass); // tileset index for grass
+    const WATER = Number(assets.blocks.sprites.Water); // tileset index for water
     const width = WORLD_COLS;
     const height = WORLD_ROWS;
     const total = width * height;
@@ -483,6 +509,6 @@ export class GameScene extends Phaser.Scene {
     if (!this.groundLayer) return false;
     const tile = this.groundLayer.getTileAtWorldXY(worldX, worldY, true);
     if (!tile) return false;
-    return tile.index === 10; // grass
+    return tile.index === Number(assets.blocks.sprites.Grass); // grass
   }
 }

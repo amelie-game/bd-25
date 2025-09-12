@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { assets } from "../assets";
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -33,6 +34,11 @@ export class TitleScene extends Phaser.Scene {
   create() {
     const width = this.sys.game.config.width as number;
     const height = this.sys.game.config.height as number;
+
+    // Create all animations from Aseprite for amelie (and others if needed)
+    this.anims.createFromAseprite(assets.amelie.key);
+    // If you have more atlases, repeat for each: this.anims.createFromAseprite("cynthia"); etc.
+
     this.add
       .text(width / 2, height / 2 - 40, "Amelcraft", {
         font: "32px Arial",

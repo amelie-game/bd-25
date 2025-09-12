@@ -3,10 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "npm run generate:code",
     "dev": "vite",
+    "prebuild": "npm run generate:code",
     "build": "vite build",
     "prepreview": "npm run build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:code": "node ./scripts/gen-assets.js"
   },
   "dependencies": {
     "phaser": "^3.90.0"
