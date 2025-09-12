@@ -32,7 +32,7 @@
     },
     {
       "type": "spritesheet",
-      "key": "tiles_blocks",
+      "key": "blocks",
       "url": "assets/tilesets/blocks.png",
       "frameConfig": { "frameWidth": 48, "frameHeight": 48 }
     }
