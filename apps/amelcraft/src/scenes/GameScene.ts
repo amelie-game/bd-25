@@ -87,7 +87,7 @@ export class GameScene extends Phaser.Scene {
       this.groundLayer = layer as Phaser.Tilemaps.TilemapLayer;
       // Generate island terrain (grass & water)
       this.groundLayer.fill(
-        Number(assets.blocks.sprites.Water),
+        assets.blocks.sprites.Water,
         0,
         0,
         WORLD_COLS,
@@ -375,7 +375,7 @@ export class GameScene extends Phaser.Scene {
     this.player.play(getAnim("idle", dir), true);
     // 3. Place a "Red" block at that location
     if (this.groundLayer) {
-      this.groundLayer.putTileAt(Number(assets.blocks.sprites.Red), tx, ty);
+      this.groundLayer.putTileAt(assets.blocks.sprites.Red, tx, ty);
     }
   }
 
@@ -394,8 +394,8 @@ export class GameScene extends Phaser.Scene {
   // --- World Generation Helpers ---
   private generateIsland() {
     if (!this.groundLayer) return;
-    const GRASS = Number(assets.blocks.sprites.Grass); // tileset index for grass
-    const WATER = Number(assets.blocks.sprites.Water); // tileset index for water
+    const GRASS = assets.blocks.sprites.Grass; // tileset index for grass
+    const WATER = assets.blocks.sprites.Water; // tileset index for water
     const width = WORLD_COLS;
     const height = WORLD_ROWS;
     const total = width * height;
@@ -599,8 +599,8 @@ export class GameScene extends Phaser.Scene {
     if (!this.groundLayer) return false;
     const tile = this.groundLayer.getTileAtWorldXY(worldX, worldY, true);
     if (!tile) return false;
-    const grass = Number(assets.blocks.sprites.Grass);
-    const red = Number(assets.blocks.sprites.Red);
+    const grass = assets.blocks.sprites.Grass;
+    const red = assets.blocks.sprites.Red;
     return tile.index === grass || tile.index === red;
   }
 }

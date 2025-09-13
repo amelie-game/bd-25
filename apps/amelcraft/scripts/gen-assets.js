@@ -27,23 +27,43 @@ function extractAnimationsAndSprites(aseprite) {
       const norm = normalizeKey(tag.name);
       result.animations[norm] = tag.name;
       // Mark frames in this tag as used
-      for (let i = tag.from; i <= tag.to; i++) usedFrames.add(i.toString());
+      for (let i = tag.from; i <= tag.to; i++) usedFrames.add(i);
     }
   }
   // Sprites: frames not used in any animation
-  const staticFrames = Object.keys(frames).filter((k) => !usedFrames.has(k));
-  if (staticFrames.length > 0) {
-    result.sprites = {};
-    for (const k of staticFrames) {
-      const frame = frames[k];
-      if (frame && typeof frame === "object" && frame.name) {
-        // Use the 'name' property as the key, and the frame index as the value
-        const norm = normalizeKey(frame.name);
-        result.sprites[norm] = k;
-      } else {
-        // Fallback: use the key as both key and value (legacy)
-        const norm = normalizeKey(k);
-        result.sprites[norm] = k;
+  let staticFrames = [];
+  if (Array.isArray(frames)) {
+    // Array form: indices are numbers
+    staticFrames = frames
+      .map((frame, idx) => ({ frame, idx }))
+      .filter(({ idx, frame }) => !usedFrames.has(idx) && frame !== null);
+    if (staticFrames.length > 0) {
+      result.sprites = {};
+      for (const { frame, idx } of staticFrames) {
+        if (frame && typeof frame === "object" && frame.name) {
+          const norm = normalizeKey(frame.name);
+          result.sprites[norm] = idx;
+        } else {
+          // If frame is not an object or has no name, skip (shouldn't happen with nulls filtered)
+          // continue;
+        }
+      }
+    }
+  } else if (frames && typeof frames === "object") {
+    // Object form: keys are strings, but try to parse as numbers
+    staticFrames = Object.keys(frames)
+      .map((k) => ({ frame: frames[k], idx: isNaN(Number(k)) ? k : Number(k) }))
+      .filter(({ idx }) => !usedFrames.has(idx));
+    if (staticFrames.length > 0) {
+      result.sprites = {};
+      for (const { frame, idx } of staticFrames) {
+        if (frame && typeof frame === "object" && frame.name) {
+          const norm = normalizeKey(frame.name);
+          result.sprites[norm] = idx;
+        } else {
+          const norm = normalizeKey(String(idx));
+          result.sprites[norm] = idx;
+        }
       }
     }
   }
