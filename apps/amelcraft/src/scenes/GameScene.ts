@@ -599,6 +599,8 @@ export class GameScene extends Phaser.Scene {
     if (!this.groundLayer) return false;
     const tile = this.groundLayer.getTileAtWorldXY(worldX, worldY, true);
     if (!tile) return false;
-    return tile.index === Number(assets.blocks.sprites.Grass); // grass
+    const grass = Number(assets.blocks.sprites.Grass);
+    const red = Number(assets.blocks.sprites.Red);
+    return tile.index === grass || tile.index === red;
   }
 }

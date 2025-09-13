@@ -8,24 +8,6 @@
     },
     {
       "type": "aseprite",
-      "key": "cynthia",
-      "textureURL": "assets/characters/cynthia-party-hat.png",
-      "atlasURL": "assets/characters/cynthia.aseprite.json"
-    },
-    {
-      "type": "aseprite",
-      "key": "mila",
-      "textureURL": "assets/characters/mila-party-hat.png",
-      "atlasURL": "assets/characters/mila.aseprite.json"
-    },
-    {
-      "type": "aseprite",
-      "key": "tobias",
-      "textureURL": "assets/characters/tobias-party-hat.png",
-      "atlasURL": "assets/characters/tobias.aseprite.json"
-    },
-    {
-      "type": "aseprite",
       "key": "objects",
       "textureURL": "assets/objects/objects.png",
       "atlasURL": "assets/objects/objects.aseprite.json"
