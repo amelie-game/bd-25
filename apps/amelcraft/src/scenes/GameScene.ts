@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import "../hud/HUD.js";
 import { TILE_SIZE } from "../main";
 import { assets } from "../assets";
 
@@ -24,6 +25,9 @@ export class GameScene extends Phaser.Scene {
   private highlightedTiles: { x: number; y: number }[] = [];
   // Camera always follows player; panning removed per latest requirement
 
+  private hudEl: HTMLElement | null = null;
+  private selectedTool: number | "dig" = "dig";
+
   constructor() {
     super("GameScene");
   }
@@ -31,6 +35,59 @@ export class GameScene extends Phaser.Scene {
   preload() {}
 
   create() {
+    // --- HUD ---
+    // Placeable blocks: White through Black (inclusive)
+    const blockSpriteKeys = [
+      "White",
+      "LightCyan",
+      "LightMagenta",
+      "Yellow",
+      "LightRed",
+      "LightGreen",
+      "LightBlue",
+      "Grey",
+      "LightGrey",
+      "Cyan",
+      "Magenta",
+      "Brown",
+      "Red",
+      "Green",
+      "Blue",
+      "Black",
+    ];
+    const blockKeys = blockSpriteKeys
+      .map((k) => ({
+        key: k,
+        value: assets.blocks.sprites[k as keyof typeof assets.blocks.sprites],
+        count: 99,
+      }))
+      .filter((b) => b.value !== undefined);
+
+    // Expose Phaser game instance for HUD canvas rendering
+    if (typeof window !== "undefined") {
+      (window as any)["game"] = this.game;
+    }
+    // Create and append <hud> web component
+    this.hudEl = document.createElement("amelcraft-hud");
+    document.body.appendChild(this.hudEl);
+    (this.hudEl as any).data = {
+      blockKeys,
+      selected: this.selectedTool,
+      onSelect: (val: number | "dig") => {
+        this.selectedTool = val;
+      },
+    };
+
+    // Clean up HUD on scene shutdown/destroy
+    const cleanupHud = () => {
+      if (this.hudEl) {
+        this.hudEl.remove();
+        this.hudEl = null;
+      }
+    };
+    this.events.on("shutdown", cleanupHud);
+    this.events.on("destroy", cleanupHud);
+
     // Highlight overlay graphics
     this.highlightGraphics = this.add.graphics();
     this.highlightGraphics.setDepth(10);
@@ -194,6 +251,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
+    // HUD selection is always up-to-date
+    // Keep selectedTool in sync with HUD selection
+    if (this.hudEl && (this.hudEl as any).getSelected) {
+      this.selectedTool = (this.hudEl as any).getSelected();
+    }
     // Highlight logic: compute and draw highlights around player
     this.updateHighlights();
 
@@ -374,9 +436,20 @@ export class GameScene extends Phaser.Scene {
     };
     this.player.play(getAnim("idle", dir), true);
     // 3. Place a "Red" block at that location
-    if (this.groundLayer) {
-      this.groundLayer.putTileAt(assets.blocks.sprites.Red, tx, ty);
+    if (!this.groundLayer) return;
+    // Use selected tool/block
+    if (this.selectedTool === "dig") {
+      // Dig: remove block (set to Grass if not already Grass)
+      const grass = assets.blocks.sprites.Grass;
+      const tile = this.groundLayer.getTileAt(tx, ty);
+      if (tile && tile.index !== grass) {
+        this.groundLayer.putTileAt(grass, tx, ty);
+      }
+    } else {
+      // Place selected block
+      this.groundLayer.putTileAt(this.selectedTool, tx, ty);
     }
+    // HUD cleanup is handled via scene events
   }
 
   // Animations are now created in TitleScene using createFromAseprite
