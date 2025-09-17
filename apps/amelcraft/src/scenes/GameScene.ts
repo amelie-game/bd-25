@@ -1,3 +1,5 @@
+// Configurable: block collection time in milliseconds
+const COLLECT_BLOCK_TIME_MS = 1000;
 import Phaser from "phaser";
 import "../hud/HUD.js";
 import { TILE_SIZE } from "../main";
@@ -8,11 +10,26 @@ const WORLD_COLS = 100;
 const WORLD_ROWS = 100;
 
 export class GameScene extends Phaser.Scene {
+  // Timer for delayed collection start (not Phaser timer)
+  private pendingCollectionTimeout: any = null;
   private groundLayer!: Phaser.Tilemaps.TilemapLayer;
   private camera!: Phaser.Cameras.Scene2D.Camera;
   private player!: Phaser.GameObjects.Sprite;
   private isDragging = false;
   private target: { x: number; y: number } | null = null;
+  private pointerDownTime: number | null = null;
+  private pointerDownTile: { x: number; y: number } | null = null;
+  // Block collection state
+  private collectingBlock: {
+    x: number;
+    y: number;
+    startTime: number;
+    timer: Phaser.Time.TimerEvent;
+  } | null = null;
+  private collectionProgress: number = 0;
+  private highlightTile: { x: number; y: number } | null = null;
+  private alwaysHighlightTiles: { x: number; y: number }[] = [];
+  private INTERACT_RANGE = 2; // tiles
   private moveSpeed = 248; // pixels per second (from PoC)
   private lastDirection: "right" | "left" | "up" | "down" = "down";
   private worldPixelWidth = WORLD_COLS * TILE_SIZE;
@@ -31,8 +48,6 @@ export class GameScene extends Phaser.Scene {
   constructor() {
     super("GameScene");
   }
-
-  preload() {}
 
   create() {
     // --- HUD ---
@@ -160,8 +175,8 @@ export class GameScene extends Phaser.Scene {
 
     // (Keyboard cursors removed for now)
 
-    // Pointer drag movement using Phaser input (zoom aware)
-    this.setupPointerControls();
+    // Unified pointer/touch controls
+    this.setupUnifiedPointerControls();
 
     const canvas = this.game.canvas;
 
@@ -251,6 +266,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
+    // Update block collection progress
+    if (this.collectingBlock) {
+      const elapsed = this.time.now - this.collectingBlock.startTime;
+      this.collectionProgress = Phaser.Math.Clamp(
+        elapsed / COLLECT_BLOCK_TIME_MS,
+        0,
+        1
+      );
+      // Progress bar will be rendered in updateHighlights()
+    } else {
+      this.collectionProgress = 0;
+    }
     // HUD selection is always up-to-date
     // Keep selectedTool in sync with HUD selection
     if (this.hudEl && (this.hudEl as any).getSelected) {
@@ -258,6 +285,13 @@ export class GameScene extends Phaser.Scene {
     }
     // Highlight logic: compute and draw highlights around player
     this.updateHighlights();
+
+    // Always highlight interactable blocks when standing still
+    if (!this.target) {
+      this.alwaysHighlightTiles = this.getInteractableTiles();
+    } else {
+      this.alwaysHighlightTiles = [];
+    }
 
     // Player movement logic
     if (this.target) {
@@ -353,41 +387,78 @@ export class GameScene extends Phaser.Scene {
 
   private updateHighlights() {
     if (!this.groundLayer) return;
-    // Compute player tile position
+    this.highlightGraphics.clear();
+    // Always highlight interactable blocks when standing still
+    if (this.alwaysHighlightTiles && this.alwaysHighlightTiles.length > 0) {
+      for (const { x, y } of this.alwaysHighlightTiles) {
+        this.highlightGraphics.lineStyle(2, 0x00ff00, 0.5);
+        this.highlightGraphics.strokeRect(
+          x * TILE_SIZE,
+          y * TILE_SIZE,
+          TILE_SIZE,
+          TILE_SIZE
+        );
+      }
+    }
+    // Highlight the tile under the pointer (if any)
+    if (this.highlightTile) {
+      const { x, y } = this.highlightTile;
+      const px = Math.floor(this.player.x / TILE_SIZE);
+      const py = Math.floor(this.player.y / TILE_SIZE);
+      const dist = Math.abs(x - px) + Math.abs(y - py);
+      // Visual feedback: green if in range, red if out of range
+      const inRange = dist <= this.INTERACT_RANGE;
+      this.highlightGraphics.lineStyle(2, inRange ? 0x00ff00 : 0xff0000, 0.7);
+      this.highlightGraphics.fillStyle(inRange ? 0x00ff00 : 0xff0000, 0.15);
+      const sx = x * TILE_SIZE;
+      const sy = y * TILE_SIZE;
+      this.highlightGraphics.strokeRect(sx, sy, TILE_SIZE, TILE_SIZE);
+      this.highlightGraphics.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+      // Draw progress bar if collecting this block
+      if (
+        this.collectingBlock &&
+        this.collectingBlock.x === x &&
+        this.collectingBlock.y === y
+      ) {
+        const barWidth = TILE_SIZE * 0.8;
+        const barHeight = 6;
+        const barX = sx + TILE_SIZE * 0.1;
+        const barY = sy - 10;
+        // Background
+        this.highlightGraphics.fillStyle(0x222222, 0.7);
+        this.highlightGraphics.fillRect(barX, barY, barWidth, barHeight);
+        // Progress
+        this.highlightGraphics.fillStyle(0x00ff00, 0.9);
+        this.highlightGraphics.fillRect(
+          barX,
+          barY,
+          barWidth * this.collectionProgress,
+          barHeight
+        );
+        // Border
+        this.highlightGraphics.lineStyle(1, 0xffffff, 0.8);
+        this.highlightGraphics.strokeRect(barX, barY, barWidth, barHeight);
+      }
+    }
+  }
+
+  // Get all interactable block tiles within range
+  private getInteractableTiles(): { x: number; y: number }[] {
     const px = Math.floor(this.player.x / TILE_SIZE);
     const py = Math.floor(this.player.y / TILE_SIZE);
-    // 8 directions
-    const dirs = [
-      { dx: 0, dy: -1, dir: "up" }, // N
-      { dx: 1, dy: -1, dir: "up" }, // NE
-      { dx: 1, dy: 0, dir: "right" }, // E
-      { dx: 1, dy: 1, dir: "down" }, // SE
-      { dx: 0, dy: 1, dir: "down" }, // S
-      { dx: -1, dy: 1, dir: "down" }, // SW
-      { dx: -1, dy: 0, dir: "left" }, // W
-      { dx: -1, dy: -1, dir: "up" }, // NW
-    ];
-    this.highlightedTiles = [];
-    for (const d of dirs) {
-      const tx = px + d.dx;
-      const ty = py + d.dy;
-      if (tx >= 0 && tx < WORLD_COLS && ty >= 0 && ty < WORLD_ROWS) {
-        // Don't highlight the player tile
-        if (!(tx === px && ty === py)) {
-          this.highlightedTiles.push({ x: tx, y: ty });
+    const tiles: { x: number; y: number }[] = [];
+    for (let dx = -this.INTERACT_RANGE; dx <= this.INTERACT_RANGE; dx++) {
+      for (let dy = -this.INTERACT_RANGE; dy <= this.INTERACT_RANGE; dy++) {
+        const x = px + dx;
+        const y = py + dy;
+        if (Math.abs(dx) + Math.abs(dy) <= this.INTERACT_RANGE) {
+          if (this.groundLayer && this.groundLayer.getTileAt(x, y)) {
+            tiles.push({ x, y });
+          }
         }
       }
     }
-    // Draw highlights
-    this.highlightGraphics.clear();
-    this.highlightGraphics.lineStyle(2, 0xff0000, 0.7);
-    this.highlightGraphics.fillStyle(0xff0000, 0.15);
-    for (const t of this.highlightedTiles) {
-      const sx = t.x * TILE_SIZE;
-      const sy = t.y * TILE_SIZE;
-      this.highlightGraphics.strokeRect(sx, sy, TILE_SIZE, TILE_SIZE);
-      this.highlightGraphics.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-    }
+    return tiles;
   }
 
   private handleBlockPlacement(tx: number, ty: number) {
@@ -438,17 +509,9 @@ export class GameScene extends Phaser.Scene {
     // 3. Place a "Red" block at that location
     if (!this.groundLayer) return;
     // Use selected tool/block
-    if (this.selectedTool === "dig") {
-      // Dig: remove block (set to Grass if not already Grass)
-      const grass = assets.blocks.sprites.Grass;
-      const tile = this.groundLayer.getTileAt(tx, ty);
-      if (tile && tile.index !== grass) {
-        this.groundLayer.putTileAt(grass, tx, ty);
-      }
-    } else {
-      // Place selected block
-      this.groundLayer.putTileAt(this.selectedTool, tx, ty);
-    }
+    if (this.selectedTool === "dig") return;
+
+    this.groundLayer.putTileAt(this.selectedTool, tx, ty);
     // HUD cleanup is handled via scene events
   }
 
@@ -634,38 +697,207 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private setupPointerControls() {
-    // Use Phaser's pointer events to get accurate worldX/worldY regardless of zoom/scroll
-    this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
-      // Check if pointer is on a highlighted tile
+  private setupUnifiedPointerControls() {
+    // Unified pointer/touch event handling
+    this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
       const tx = Math.floor(p.worldX / TILE_SIZE);
       const ty = Math.floor(p.worldY / TILE_SIZE);
-      const highlightIdx = this.highlightedTiles.findIndex(
-        (t) => t.x === tx && t.y === ty
-      );
-      if (highlightIdx !== -1) {
-        // Place block and turn to face
-        this.handleBlockPlacement(tx, ty);
-        return;
+      this.highlightTile = { x: tx, y: ty };
+      // If pointer is down and moves to a new tile, abort collection and start new if still holding
+      if (
+        this.pointerDownTile &&
+        (this.pointerDownTile.x !== tx || this.pointerDownTile.y !== ty)
+      ) {
+        // Clear pointerDownTile before canceling collection to prevent race
+        this.pointerDownTile = null;
+        this.pointerDownTime = null;
+        this.cancelBlockCollection();
+        // If pointer is still down, start new collection on new tile (if dig tool and in range)
+        if (
+          this.input.activePointer.isDown &&
+          this.selectedTool === "dig" &&
+          this.isInInteractRange(tx, ty)
+        ) {
+          this.pointerDownTile = { x: tx, y: ty };
+          this.pointerDownTime = this.time.now;
+          this.startBlockCollection(tx, ty);
+        }
       }
-      // Otherwise, normal movement
-      if (!this.isWalkable(p.worldX, p.worldY)) return; // ignore clicks on water
-      this.isDragging = true;
-      this.target = { x: p.worldX, y: p.worldY };
     });
-    this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
-      if (!this.isDragging) return;
-      if (!this.isWalkable(p.worldX, p.worldY)) return; // don't update target onto water
-      this.target = { x: p.worldX, y: p.worldY };
+
+    this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      const tx = Math.floor(p.worldX / TILE_SIZE);
+      const ty = Math.floor(p.worldY / TILE_SIZE);
+      this.pointerDownTime = this.time.now;
+      this.pointerDownTile = { x: tx, y: ty };
+      this.highlightTile = { x: tx, y: ty };
+      // Start collection state immediately if dig tool is selected and in range
+      if (this.selectedTool === "dig" && this.isInInteractRange(tx, ty)) {
+        this.startBlockCollection(tx, ty);
+      }
     });
-    this.input.on("pointerup", () => {
-      this.isDragging = false;
-      this.target = null;
+
+    this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
+      const tx = Math.floor(p.worldX / TILE_SIZE);
+      const ty = Math.floor(p.worldY / TILE_SIZE);
+      // If pointer up is on same tile as down and short press, treat as tap/click (never collect block here)
+      if (
+        this.pointerDownTile &&
+        this.pointerDownTile.x === tx &&
+        this.pointerDownTile.y === ty
+      ) {
+        const pressDuration = this.time.now - (this.pointerDownTime ?? 0);
+        if (pressDuration < 500) {
+          // Tap/click: place block if in range
+          const placed = this.tryInteractBlock(tx, ty, "place");
+          // If not placed (out of range or not placeable), always move toward the tap/click location (regardless of walkability)
+          if (!placed) {
+            this.target = { x: p.worldX, y: p.worldY };
+          }
+        }
+      }
+      // Always cancel block collection on pointerup (never allow immediate collection here)
+      this.pointerDownTime = null;
+      this.pointerDownTile = null;
+      this.cancelBlockCollection();
     });
-    this.input.on("pointerupoutside", () => {
-      this.isDragging = false;
-      this.target = null;
-    });
+  }
+
+  // Helper: check if a tile is in interact range
+  private isInInteractRange(tx: number, ty: number): boolean {
+    const px = Math.floor(this.player.x / TILE_SIZE);
+    const py = Math.floor(this.player.y / TILE_SIZE);
+    const dist = Math.abs(tx - px) + Math.abs(ty - py);
+    return dist <= this.INTERACT_RANGE;
+  }
+
+  // Cancel the pending JS timer for collection
+  private cancelPendingCollection() {
+    if (this.pendingCollectionTimeout) {
+      clearTimeout(this.pendingCollectionTimeout);
+      this.pendingCollectionTimeout = null;
+    }
+  }
+
+  // Try to place or collect a block at (tx, ty) if in range. Returns true if interaction occurred.
+  private tryInteractBlock(
+    tx: number,
+    ty: number,
+    action: "place" | "start-collect"
+  ): boolean {
+    if (!this.groundLayer) return false;
+    const px = Math.floor(this.player.x / TILE_SIZE);
+    const py = Math.floor(this.player.y / TILE_SIZE);
+    const dist = Math.abs(tx - px) + Math.abs(ty - py);
+    if (dist > this.INTERACT_RANGE) {
+      // Out of range: could add shake or red highlight
+      return false;
+    }
+    if (action === "place") {
+      this.handleBlockPlacement(tx, ty);
+      return true;
+    } else if (action === "start-collect") {
+      this.startBlockCollection(tx, ty);
+      return true;
+    }
+    return false;
+  }
+
+  // Start block collection (shows progress bar, only collects if pointer is still down on same block when timer finishes)
+  private startBlockCollection(tx: number, ty: number) {
+    // Cancel any existing collection
+    if (this.collectingBlock) this.cancelBlockCollection();
+    const grass = assets.blocks.sprites.Grass;
+    const tile = this.groundLayer.getTileAt(tx, ty);
+    if (!tile || tile.index === grass) return;
+    // Make PC turn toward the block being collected
+    const px = Math.floor(this.player.x / TILE_SIZE);
+    const py = Math.floor(this.player.y / TILE_SIZE);
+    const dx = tx - px;
+    const dy = ty - py;
+    let dir: "up" | "down" | "left" | "right" = this.lastDirection;
+    if (Math.abs(dx) > Math.abs(dy)) {
+      dir = dx > 0 ? "right" : "left";
+    } else if (Math.abs(dy) > 0) {
+      dir = dy > 0 ? "down" : "up";
+    }
+    this.lastDirection = dir;
+    const getAnim = (
+      type: "walk" | "idle",
+      dir: "right" | "left" | "up" | "down"
+    ) => {
+      if (type === "walk") {
+        switch (dir) {
+          case "right":
+            return assets.amelie.animations.AmelieWalkRight;
+          case "left":
+            return assets.amelie.animations.AmelieWalkLeft;
+          case "up":
+            return assets.amelie.animations.AmelieWalkUp;
+          case "down":
+            return assets.amelie.animations.AmelieWalkDown;
+        }
+      } else {
+        switch (dir) {
+          case "right":
+            return assets.amelie.animations.AmelieIdleRight;
+          case "left":
+            return assets.amelie.animations.AmelieIdleLeft;
+          case "up":
+            return assets.amelie.animations.AmelieIdleUp;
+          case "down":
+            return assets.amelie.animations.AmelieIdleDown;
+        }
+      }
+    };
+    this.player.play(getAnim("idle", dir), true);
+    // Start collection state (now 1 second)
+    this.collectingBlock = {
+      x: tx,
+      y: ty,
+      startTime: this.time.now,
+      timer: this.time.delayedCall(COLLECT_BLOCK_TIME_MS, () => {
+        // Only collect if pointer is still down on the same block
+        if (
+          this.pointerDownTile &&
+          this.pointerDownTile.x === tx &&
+          this.pointerDownTile.y === ty &&
+          this.input.activePointer.isDown
+        ) {
+          this.handleBlockCollection(tx, ty);
+        }
+        this.collectingBlock = null;
+        this.collectionProgress = 0;
+      }),
+    };
+    this.collectionProgress = 0;
+  }
+
+  // Cancel block collection (removes progress bar, does not remove block)
+  private cancelBlockCollection() {
+    if (this.collectingBlock) {
+      // Remove timer if still active
+      if (
+        this.collectingBlock.timer &&
+        !this.collectingBlock.timer.hasDispatched
+      ) {
+        this.collectingBlock.timer.remove(false);
+      }
+      this.collectingBlock = null;
+      this.collectionProgress = 0;
+    }
+  }
+
+  // Collect block logic (called after 2s timer)
+  private handleBlockCollection(tx: number, ty: number) {
+    if (!this.groundLayer) return;
+    const grass = assets.blocks.sprites.Grass;
+    const tile = this.groundLayer.getTileAt(tx, ty);
+    if (tile && tile.index !== grass) {
+      this.groundLayer.putTileAt(grass, tx, ty);
+      // TODO: Add to inventory, play sound, etc.
+    }
+    // Progress bar is cleared by timer/cancel logic
   }
   // Determine if a world position is walkable (currently grass tile index 10)
   private isWalkable(worldX: number, worldY: number): boolean {
