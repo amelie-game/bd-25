@@ -57,3 +57,71 @@
 | Collect block         | Left click+hold 2s     | Tap+hold 2s on block | Block highlight, timer |
 | Zoom                  | Scroll wheel           | Pinch                | Zoom animates, centers |
 | Pan camera (optional) | Right click+drag       | Two-finger drag      | Camera moves           |
+
+## Inventory, Block Placement & Collection Logic
+
+### Requirements
+
+- **I1:** The player has an inventory with a limited number of slots (e.g., 16).
+- **I2:** Each slot can hold a stack of blocks of the same type, up to a maximum stack size of 99.
+- **I3:** When collecting a block, if the inventory is full or the stack for that block type is full, the block will only be removed, but won't increase the count in the inventory any further.
+- **I4:** When placing a block, the player must have at least one of that block type in their inventory.
+- **I5:** If a block is placed, one is removed from the inventory. If a block is collected, one is added to the inventory (if possible).
+- **I6:** The HUD should always show the current inventory and the selected block type for placement.
+- **I7:** Blocks with count 0 will not be visible in the inventory.
+- **I8:** If the last block gets placed, it will disappear from the inventory and deselected as the current tool.
+- **I9:** Block Rules:
+  - Water:
+    - Water can be collected, increasing its count in the inventory, but the Water block is never removed from the world when collected.
+  - Ground:
+    - Ground can be placed directly on Water.
+    - When Ground is collected, a Water block appears in its place.
+    - When Ground is placed, it replaces a Water block.
+  - Grass:
+    - Grass always sits on top of Ground.
+    - When Grass is collected, a Ground block appears in its place.
+    - When Grass is placed, it replaces a Ground block.
+  - Snow:
+    - Snow always sits on top of Ground.
+    - When Snow is collected, a Ground block appears in its place.
+    - When Snow is placed, it replaces a Ground block.
+  - Sand:
+    - Sand can be placed directly on Water.
+    - When Sand is collected, a Water block appears in its place.
+    - When Sand is placed, it replaces a Water block.
+  - All Other Blocks:
+    - All other blocks, when collected, are replaced by Water.
+
+### Design Concepts
+
+- **Inventory UI:** The HUD displays all inventory slots, stack counts, and highlights the selected block type.
+- **Block Selection:** The player can select which block type to place using the HUD (e.g., by tapping/clicking a slot).
+- **Placement/Collection Logic:**
+	- Collecting a block checks for available inventory space/stack.
+	- Placing a block checks for at least one of the selected block type.
+	- Both actions update the inventory and HUD immediately.
+- **Edge Cases:**
+	- If the inventory is full, block collection won't increase the count.
+	- If the player has no blocks of the selected type, placement is prevented.
+
+### Example Interaction Flow
+
+- **Collect Block:**
+	1. Player tap+holds/click+holds a block for 2s.
+	2. If inventory, block is collected and added to the correct stack.
+	3. If inventory is full, count won't increase.
+- **Place Block:**
+	1. Player taps/clicks a block within range.
+	2. If player has at least one of the selected block type, block is placed and removed from inventory.
+	3. If not, placement is canceled.
+
+### Summary Table
+
+| Action           | Condition                                 | Result/Feedback                  |
+|------------------|-------------------------------------------|----------------------------------|
+| Collect block    | Inventory space available                 | Block added to inventory         |
+| Collect block    | Inventory full/stack full                 | Inventory count is not increased |
+| Place block      | Has block of selected type                | Block placed, inventory -1       |
+| Place block      | No block of selected type                 | Placement canceled               |
+| Select block     | Tap/click inventory slot                  | Block type selected              |
+| Inventory update | Block placed/collected                    | HUD updates immediately          |

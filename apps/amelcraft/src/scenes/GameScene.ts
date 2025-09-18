@@ -25,6 +25,11 @@ const MAX_ZOOM = 1;
 // ===================
 // === GAME SCENE  ===
 // ===================
+// Inventory types and constants
+type InventorySlot = { block: number; count: number };
+const INVENTORY_SLOTS = 16;
+const STACK_SIZE = 99;
+
 export class GameScene extends Phaser.Scene {
   // Timer for delayed collection start (not Phaser timer)
   private pendingCollectionTimeout: any = null;
@@ -54,6 +59,7 @@ export class GameScene extends Phaser.Scene {
   private highlightGraphics!: Phaser.GameObjects.Graphics;
   private hudEl: HTMLElement | null = null;
   private selectedTool: number | "dig" = "dig";
+  private inventory: InventorySlot[] = [];
 
   constructor() {
     super("GameScene");
@@ -100,6 +106,9 @@ export class GameScene extends Phaser.Scene {
 
   // --- Helper: Tile and Range Checks ---
   private getPlayerTile(): { x: number; y: number } {
+    if (!this.player) {
+      return { x: 0, y: 0 };
+    }
     return {
       x: Math.floor(this.player.x / TILE_SIZE),
       y: Math.floor(this.player.y / TILE_SIZE),
@@ -124,7 +133,6 @@ export class GameScene extends Phaser.Scene {
 
     switch (tile.index) {
       case assets.blocks.sprites.Water:
-      case assets.blocks.sprites.LightBlue:
         return false;
       default:
         return true;
@@ -132,30 +140,150 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
-    // --- HUD ---
-    // Placeable blocks: White through Black (inclusive)
-    const blockSpriteKeys = Object.keys(assets.blocks.sprites);
-    const blockKeys = blockSpriteKeys
-      .map((k) => ({
-        key: k,
-        value: assets.blocks.sprites[k as keyof typeof assets.blocks.sprites],
-        count: 99,
-      }))
-      .filter((b) => b.value !== undefined);
+    // Make Phaser game instance globally available for HUD block rendering
+    (window as any)["game"] = this.game;
+    // --- Camera Zoom Controls ---
+    // Mouse wheel zoom
+    this.input.on(
+      "wheel",
+      (
+        pointer: any,
+        gameObjects: any,
+        deltaX: number,
+        deltaY: number,
+        deltaZ: number
+      ) => {
+        const zoomChange = deltaY > 0 ? -0.1 : 0.1;
+        this.setZoom(this.camera.zoom + zoomChange);
+      }
+    );
 
-    // Expose Phaser game instance for HUD canvas rendering
-    if (typeof window !== "undefined") {
-      (window as any)["game"] = this.game;
+    // Pinch zoom for touch devices
+    this.input.on("pointermove", (pointer: any) => {
+      if (pointer.pointers && pointer.pointers.length === 2) {
+        const [p1, p2] = pointer.pointers;
+        const dist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+        if (this.lastPinchDist !== null) {
+          const diff = dist - this.lastPinchDist;
+          if (Math.abs(diff) > 2) {
+            this.setZoom(this.camera.zoom + diff * 0.002);
+          }
+        }
+        this.lastPinchDist = dist;
+      } else {
+        this.lastPinchDist = null;
+      }
+    });
+    // --- Inventory Initialization ---
+    this.inventory = [];
+    // Give player a few blocks to start (for demo)
+    const blockSpriteKeys = Object.keys(assets.blocks.sprites);
+    for (let i = 0; i < Math.min(3, blockSpriteKeys.length); i++) {
+      this.inventory.push({
+        block:
+          assets.blocks.sprites[
+            blockSpriteKeys[i] as keyof typeof assets.blocks.sprites
+          ],
+        count: 10,
+      });
     }
-    // Create and append <hud> web component
+
+    // --- Tilemap and Tileset ---
+    const map = this.make.tilemap({
+      tileWidth: TILE_SIZE,
+      tileHeight: TILE_SIZE,
+      width: WORLD_COLS,
+      height: WORLD_ROWS,
+    });
+    if (!map) {
+      console.warn("Tilemap creation failed");
+      return;
+    }
+    const tileset = map.addTilesetImage(assets.blocks.key);
+    if (!tileset) {
+      console.warn("Tileset creation failed for key:", assets.blocks.key);
+      return;
+    }
+    const layer = map.createBlankLayer("ground", tileset);
+    if (!layer) {
+      console.warn("Tilemap layer creation failed");
+      return;
+    }
+    this.groundLayer = layer as Phaser.Tilemaps.TilemapLayer;
+    // Generate island terrain (grass & water)
+    this.groundLayer.fill(
+      assets.blocks.sprites.Water,
+      0,
+      0,
+      WORLD_COLS,
+      WORLD_ROWS
+    ); // start as water
+    this.generateIsland();
+    this.groundLayer.setDepth(0);
+
+    // --- Player Sprite ---
+    const startX = (WORLD_COLS / 2) * TILE_SIZE + TILE_SIZE / 2;
+    const startY = (WORLD_ROWS / 2) * TILE_SIZE + TILE_SIZE / 2;
+
+    // Use a valid numeric frame index or fallback to 0
+    const defaultFrame = 0;
+    this.player = this.add.sprite(
+      startX,
+      startY,
+      assets.amelie.key,
+      defaultFrame
+    );
+    if (!this.player) {
+      console.warn("Player sprite creation failed");
+      return;
+    }
+
+    this.player.setOrigin(0.5, 0.75); // feet alignment
+    (this.player as any).setSmooth && (this.player as any).setSmooth(false);
+    this.player.setDepth(1);
+
+    // --- Animations ---
+    // Ensure idle down animation exists and loops
+    if (!this.anims.exists("AmelieIdleDown")) {
+      // Use all available idle down frames if present, else fallback to frame 0
+      const idleDownFrames =
+        assets.amelie.animations &&
+        Array.isArray(assets.amelie.animations.AmelieIdleDown)
+          ? assets.amelie.animations.AmelieIdleDown
+          : [0];
+      this.anims.create({
+        key: "AmelieIdleDown",
+        frames: idleDownFrames.map((frame: number) => ({
+          key: assets.amelie.key,
+          frame,
+        })),
+        frameRate: 2,
+        repeat: -1,
+      });
+    }
+    this.player.play("AmelieIdleDown", false); // force restart, always loop
+    // --- Pointer/Touch Controls ---
+    this.setupUnifiedPointerControls();
+
+    // --- Highlight Graphics ---
+    this.highlightGraphics = this.add.graphics();
+    this.highlightGraphics.setDepth(10);
+
+    // --- Camera ---
+    this.camera = this.cameras.main;
+    this.camera.roundPixels = true;
+    this.camera.setBounds(0, 0, this.worldPixelWidth, this.worldPixelHeight);
+    this.computeZoomBounds();
+    this.camera.setZoom(Phaser.Math.Clamp(1, this.minZoom, this.maxZoom));
+    this.camera.centerOn(this.player.x, this.player.y);
+
+    // --- HUD ---
     this.hudEl = document.createElement("amelcraft-hud");
     document.body.appendChild(this.hudEl);
-    (this.hudEl as any).data = {
-      blockKeys,
-      selected: this.selectedTool,
-      onSelect: (val: number | "dig") => {
-        this.selectedTool = val;
-      },
+    this.updateHUD();
+    (this.hudEl as any).onSelect = (val: number | "dig") => {
+      this.selectedTool = val;
+      this.updateHUD();
     };
 
     // Clean up HUD on scene shutdown/destroy
@@ -167,128 +295,87 @@ export class GameScene extends Phaser.Scene {
     };
     this.events.on("shutdown", cleanupHud);
     this.events.on("destroy", cleanupHud);
+  }
 
-    // Highlight overlay graphics
-    this.highlightGraphics = this.add.graphics();
-    this.highlightGraphics.setDepth(10);
-    this.camera = this.cameras.main;
-    this.camera.roundPixels = true;
+  // === INVENTORY HELPERS ===
+  private findInventorySlot(block: number): number {
+    return this.inventory.findIndex((slot) => slot.block === block);
+  }
 
-    // Player sprite using amelie atlas (preloaded in TitleScene)
-    const startX = (WORLD_COLS / 2) * TILE_SIZE + TILE_SIZE / 2;
-    const startY = (WORLD_ROWS / 2) * TILE_SIZE + TILE_SIZE / 2;
-    // Use the first walk-right frame from assets.amelie.animations or fallback to frame index "50"
-    const defaultFrame = "50";
-    this.player = this.add.sprite(
-      startX,
-      startY,
-      assets.amelie.key,
-      defaultFrame
-    );
-    this.player.setOrigin(0.5, 0.75); // feet alignment
-    // Disable smoothing (important for crisp pixel art)
-    (this.player as any).setSmooth && (this.player as any).setSmooth(false);
-    // Animations are now created in TitleScene using createFromAseprite
-    this.player.play(assets.amelie.animations.AmelieIdleDown);
-
-    // Manual camera control (dead-zone) instead of continuous follow
-    this.camera.setBounds(0, 0, this.worldPixelWidth, this.worldPixelHeight);
-    this.computeZoomBounds();
-    // Initial zoom set to 1 clamped in range
-    this.camera.setZoom(Phaser.Math.Clamp(1, this.minZoom, this.maxZoom));
-
-    // Create ground tilemap layer filled with tile index for water
-    const map = this.make.tilemap({
-      tileWidth: TILE_SIZE,
-      tileHeight: TILE_SIZE,
-      width: WORLD_COLS,
-      height: WORLD_ROWS,
-    });
-    const tileset = map.addTilesetImage(assets.blocks.key);
-    // Fallback: if not found, add manually from cache texture
-    const ts =
-      tileset ??
-      map.addTilesetImage(
-        assets.blocks.key,
-        undefined,
-        TILE_SIZE,
-        TILE_SIZE,
-        0,
-        0
-      );
-    const layer = map.createBlankLayer("ground", ts!);
-    if (!layer) {
-      // Fallback: if layer creation failed, skip silently
-      // (Should not happen if tileset is valid.)
-    } else {
-      this.groundLayer = layer as Phaser.Tilemaps.TilemapLayer;
-      // Generate island terrain (grass & water)
-      this.groundLayer.fill(
-        assets.blocks.sprites.Water,
-        0,
-        0,
-        WORLD_COLS,
-        WORLD_ROWS
-      ); // start as water
-      this.generateIsland();
-      this.groundLayer.setDepth(0);
-    }
-    this.player.setDepth(1);
-
-    // Center camera on player at start
-    this.camera.centerOn(this.player.x, this.player.y);
-
-    // (Keyboard cursors removed for now)
-
-    // Unified pointer/touch controls
-    this.setupUnifiedPointerControls();
-
-    const canvas = this.game.canvas;
-
-    // Wheel zoom (desktop)
-    // (canvas already defined above)
-    canvas.addEventListener(
-      "wheel",
-      (e) => {
-        e.preventDefault();
-        const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
-        this.setZoom(this.camera.zoom * factor);
-      },
-      { passive: false }
-    );
-
-    // Touch pinch zoom
-    canvas.addEventListener("touchstart", (e) => {
-      if (e.touches.length === 2) {
-        const dx = e.touches[0].clientX - e.touches[1].clientX;
-        const dy = e.touches[0].clientY - e.touches[1].clientY;
-        this.lastPinchDist = Math.sqrt(dx * dx + dy * dy);
+  private addToInventory(block: number): boolean {
+    // Try to add to existing stack
+    let idx = this.findInventorySlot(block);
+    if (idx !== -1) {
+      let slot = this.inventory[idx];
+      if (slot.count < STACK_SIZE) {
+        slot.count++;
+        this.updateHUD();
+        return true;
+      } else {
+        // Stack full
+        return false;
       }
-    });
-    canvas.addEventListener(
-      "touchmove",
-      (e) => {
-        if (e.touches.length === 2 && this.lastPinchDist !== null) {
-          const dx = e.touches[0].clientX - e.touches[1].clientX;
-          const dy = e.touches[0].clientY - e.touches[1].clientY;
-          const newDist = Math.sqrt(dx * dx + dy * dy);
-          const ratio = newDist / this.lastPinchDist;
-          this.setZoom(this.camera.zoom * ratio);
-          this.lastPinchDist = newDist;
-          e.preventDefault();
-        }
-      },
-      { passive: false }
-    );
-    canvas.addEventListener("touchend", (e) => {
-      if (e.touches.length < 2) this.lastPinchDist = null;
-    });
+    }
+    // Add new slot if space
+    if (this.inventory.length < INVENTORY_SLOTS) {
+      this.inventory.push({ block, count: 1 });
+      this.updateHUD();
+      return true;
+    }
+    // Inventory full
+    return false;
+  }
 
-    // Recompute zoom bounds when scale changes
-    this.scale.on("resize", () => {
-      this.computeZoomBounds();
-      this.setZoom(this.camera.zoom); // clamp current zoom within new bounds
-    });
+  private removeFromInventory(block: number): boolean {
+    let idx = this.findInventorySlot(block);
+    if (idx !== -1) {
+      let slot = this.inventory[idx];
+      slot.count--;
+      if (slot.count <= 0) {
+        this.inventory.splice(idx, 1);
+        // Deselect if this was the selected tool
+        if (this.selectedTool === block) {
+          this.selectedTool = "dig";
+        }
+      }
+      this.updateHUD();
+      return true;
+    }
+    return false;
+  }
+
+  private hasBlockInInventory(block: number): boolean {
+    let idx = this.findInventorySlot(block);
+    return idx !== -1 && this.inventory[idx].count > 0;
+  }
+
+  private updateHUD() {
+    if (!this.hudEl) return;
+    // Only show blocks with count > 0
+    const blockKeys = this.inventory
+      .filter((slot) => slot.count > 0)
+      .map((slot) => {
+        // Try to find the sprite name for this block index
+        const spriteName = Object.keys(assets.blocks.sprites).find(
+          (k) =>
+            assets.blocks.sprites[k as keyof typeof assets.blocks.sprites] ===
+            slot.block
+        );
+        return {
+          key: slot.block,
+          value: slot.block,
+          count: slot.count,
+          sprite: spriteName ? spriteName : undefined,
+        };
+      });
+    (this.hudEl as any).data = {
+      blockKeys,
+      selected: this.selectedTool,
+      onSelect: (val: number | "dig") => {
+        this.selectedTool = val;
+        this.updateHUD();
+      },
+    };
   }
 
   // Grid removed; ground now represented by tilemap
@@ -490,7 +577,17 @@ export class GameScene extends Phaser.Scene {
     this.player.play(this.getAnim("idle", dir), true);
     if (!this.groundLayer) return;
     if (this.selectedTool === "dig") return;
-    this.groundLayer.putTileAt(this.selectedTool, tx, ty);
+    // Only place if player has at least one of the selected block
+    if (
+      typeof this.selectedTool === "number" &&
+      this.hasBlockInInventory(this.selectedTool)
+    ) {
+      this.groundLayer.putTileAt(this.selectedTool, tx, ty);
+      this.removeFromInventory(this.selectedTool);
+    } else {
+      // Placement canceled: no block in inventory
+      // Optionally: show feedback (shake HUD, etc)
+    }
   }
 
   // Animations are now created in TitleScene using createFromAseprite
@@ -784,9 +881,8 @@ export class GameScene extends Phaser.Scene {
   private startBlockCollection(tx: number, ty: number) {
     // Cancel any existing collection
     if (this.collectingBlock) this.cancelBlockCollection();
-    const grass = assets.blocks.sprites.Grass;
     const tile = this.groundLayer.getTileAt(tx, ty);
-    if (!tile || tile.index === grass) return;
+    if (!tile) return;
     // Make PC turn toward the block being collected
     const px = Math.floor(this.player.x / TILE_SIZE);
     const py = Math.floor(this.player.y / TILE_SIZE);
@@ -840,11 +936,34 @@ export class GameScene extends Phaser.Scene {
   // Collect block logic (called after 2s timer)
   private handleBlockCollection(tx: number, ty: number) {
     if (!this.groundLayer) return;
-    const grass = assets.blocks.sprites.Grass;
+    const GRASS = assets.blocks.sprites.Grass;
+    const WATER = assets.blocks.sprites.Water;
+    const GROUND = assets.blocks.sprites.Brown;
+    const SNOW = assets.blocks.sprites.Snow;
+    const SAND = assets.blocks.sprites.Yellow;
     const tile = this.groundLayer.getTileAt(tx, ty);
-    if (tile && tile.index !== grass) {
-      this.groundLayer.putTileAt(grass, tx, ty);
-      // TODO: Add to inventory, play sound, etc.
+    if (tile) {
+      // Try to add to inventory; if full, just remove block
+      const added = this.addToInventory(tile.index);
+      if (tile.index === GRASS) {
+        // Grass: replace with ground
+        this.groundLayer.putTileAt(GROUND, tx, ty);
+      } else if (tile.index === GROUND) {
+        // Ground: replace with water
+        this.groundLayer.putTileAt(WATER, tx, ty);
+      } else if (tile.index === WATER) {
+        // Water: do not replace
+      } else if (tile.index === SNOW) {
+        // Snow: replace with water
+        this.groundLayer.putTileAt(WATER, tx, ty);
+      } else if (tile.index === SAND) {
+        // Sand: replace with water
+        this.groundLayer.putTileAt(WATER, tx, ty);
+      } else {
+        // All other blocks: replace with water
+        this.groundLayer.putTileAt(WATER, tx, ty);
+      }
+      // Optionally: show feedback if not added (inventory full)
     }
     // Progress bar is cleared by timer/cancel logic
   }
