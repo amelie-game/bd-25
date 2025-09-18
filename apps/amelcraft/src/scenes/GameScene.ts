@@ -134,24 +134,7 @@ export class GameScene extends Phaser.Scene {
   create() {
     // --- HUD ---
     // Placeable blocks: White through Black (inclusive)
-    const blockSpriteKeys = [
-      "White",
-      "LightCyan",
-      "LightMagenta",
-      "Yellow",
-      "LightRed",
-      "LightGreen",
-      "LightBlue",
-      "Grey",
-      "LightGrey",
-      "Cyan",
-      "Magenta",
-      "Brown",
-      "Red",
-      "Green",
-      "Blue",
-      "Black",
-    ];
+    const blockSpriteKeys = Object.keys(assets.blocks.sprites);
     const blockKeys = blockSpriteKeys
       .map((k) => ({
         key: k,

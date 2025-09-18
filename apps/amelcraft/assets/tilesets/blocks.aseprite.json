@@ -1,22 +1,14 @@
 {
   "frames": [
-    { "name": "water" },
-    { "name": "grass" },
-    { "name": "soil" },
     { "name": "snow" },
-    { "name": "sand" },
-    null,
-    null,
-    null,
-    { "name": "white" },
     { "name": "light_cyan" },
     { "name": "light_magenta" },
     { "name": "yellow" },
     { "name": "light_red" },
-    { "name": "light_green" },
-    { "name": "light_blue" },
-    { "name": "grey" },
+    { "name": "grass" },
+    { "name": "water" },
     { "name": "light_grey" },
+    { "name": "grey" },
     { "name": "cyan" },
     { "name": "magenta" },
     { "name": "brown" },
@@ -27,7 +19,7 @@
   ],
   "meta": {
     "image": "blocks.png",
-    "size": { "w": 384, "h": 144 },
+    "size": { "w": 384, "h": 96 },
     "scale": "1"
   }
 }
