@@ -1,3 +1,5 @@
+import { assets } from "../assets";
+
 // --- <hud-badge> ---
 class HudBadge extends HTMLElement {
   static get observedAttributes() {
@@ -17,10 +19,32 @@ class HudBadge extends HTMLElement {
 }
 customElements.define("hud-badge", HudBadge);
 
+const Block = Object.values(assets.blocks.sprites) as ReadonlyArray<
+  (typeof assets.blocks.sprites)[keyof typeof assets.blocks.sprites]
+>;
+type Block = (typeof Block)[number];
+
+const Mode = ["collect", "move"] as const;
+type Mode = (typeof Mode)[number];
+
+const Option = [...Mode, ...Block] as const;
+export type Option = (typeof Option)[number];
+
+function toOptionType(value: unknown): Option {
+  if (isFinite(Number(value)) && Block.includes(Number(value) as Block)) {
+    return Number(value) as Block;
+  }
+  if (Mode.includes(value as Mode)) {
+    return value as Mode;
+  }
+
+  throw new Error(`Invalid option type: ${value}`);
+}
+
 // --- <hud-option> ---
 class HudOption extends HTMLElement {
   static get observedAttributes() {
-    return ["selected", "type", "block", "count"];
+    return ["selected", "type", "count"];
   }
   attributeChangedCallback() {
     this.render();
@@ -29,25 +53,27 @@ class HudOption extends HTMLElement {
     this.render();
   }
   render() {
-    const selected = this.hasAttribute("selected");
     const type = this.getAttribute("type");
-    const block = this.getAttribute("block");
+    toOptionType(type);
+
+    const selected = this.hasAttribute("selected");
     const count = this.getAttribute("count");
+
     this.innerHTML = "";
     const btn = document.createElement("button");
-    btn.className = "hud-btn" + (selected ? " selected" : "");
-    if (type === "dig") {
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("width", "64");
-      svg.setAttribute("height", "64");
-      svg.setAttribute("viewBox", "0 0 32 32");
-      svg.innerHTML = `<path d="M4 8 Q16 0 28 8" stroke="#bbb" stroke-width="3" fill="none"/><rect x="14" y="8" width="4" height="16" rx="2" fill="#a86" stroke="#654" stroke-width="1.5"/><rect x="15.5" y="22" width="1" height="6" rx="0.5" fill="#ccc"/>`;
-      svg.style.borderRadius = "0.7em";
-      svg.style.background = "#222";
-      svg.style.display = "block";
-      svg.style.boxSizing = "border-box";
-      btn.appendChild(svg);
-    } else if (type === "block" && block) {
+    btn.className = selected ? " selected" : "";
+
+    if (type === "collect") {
+      const icon = document.createElement("div");
+      icon.className = "hud-icon";
+      icon.innerHTML = "⛏️";
+      btn.appendChild(icon);
+    } else if (type === "move") {
+      const icon = document.createElement("div");
+      icon.className = "hud-icon";
+      icon.innerHTML = "🚶";
+      btn.appendChild(icon);
+    } else {
       const canvas = document.createElement("canvas");
       canvas.width = 64;
       canvas.height = 64;
@@ -60,7 +86,7 @@ class HudOption extends HTMLElement {
       if (ctx && w["game"] && w["game"].textures) {
         const tex = w["game"].textures.get("blocks");
         if (tex) {
-          const frame = tex.get(Number(block));
+          const frame = tex.get(type);
           if (frame) {
             const source = frame.source.image;
             ctx.drawImage(
@@ -91,19 +117,19 @@ customElements.define("hud-option", HudOption);
 
 // --- <hud-dropdown> ---
 class HudDropdown extends HTMLElement {
-  private options: { key: string; value: number | "dig"; count: number }[] = [];
-  private selected: number | "dig" = "dig";
+  private options: { key: Block; value: Block; count: number }[] = [];
+  private selected: Block | null = null;
   private open = false;
-  private onSelect: ((value: number | "dig") => void) | null = null;
+  private onSelect: ((value: Block) => void) | null = null;
 
   set data({
     options,
     selected,
     onSelect,
   }: {
-    options: { key: string; value: number | "dig"; count: number }[];
-    selected: number | "dig";
-    onSelect: (value: number | "dig") => void;
+    options: HudDropdown["options"];
+    selected: HudDropdown["selected"];
+    onSelect: HudDropdown["onSelect"];
   }) {
     this.options = options;
     this.selected = selected;
@@ -120,7 +146,7 @@ class HudDropdown extends HTMLElement {
     this.render();
   };
 
-  private handleSelect = (value: number | "dig") => {
+  private handleSelect = (value: Block) => {
     this.open = false;
     if (this.onSelect) this.onSelect(value);
     this.render();
@@ -131,39 +157,37 @@ class HudDropdown extends HTMLElement {
     if (!this.options || this.options.length === 0) return;
     const root = document.createElement("div");
     root.className = "hud-dropdown-root";
+
     // Selected option (always visible)
     const selectedOpt =
       this.options.find((o) => o.value === this.selected) || this.options[0];
-    if (!selectedOpt) return;
 
     if (this.open) {
       const list = document.createElement("div");
       list.className = "hud-dropdown-list with-frame with-shadow";
+      root.appendChild(list);
+
       for (const opt of this.options) {
-        if (opt.value === this.selected) continue;
         const optEl = document.createElement("hud-option");
-        optEl.setAttribute("type", opt.key === "dig" ? "dig" : "block");
-        if (opt.key !== "dig") optEl.setAttribute("block", String(opt.value));
-        if (opt.key !== "dig") optEl.setAttribute("count", String(opt.count));
+        optEl.setAttribute("type", String(opt.value));
+        optEl.setAttribute("count", String(opt.count));
+        if (this.selected === opt.value) {
+          optEl.setAttribute("selected", "");
+        }
         optEl.onclick = () => this.handleSelect(opt.value);
         list.appendChild(optEl);
       }
-      root.appendChild(list);
     }
 
     const dropdownCtrl = document.createElement("div");
     dropdownCtrl.className = "with-frame with-shadow";
 
     const selectedEl = document.createElement("hud-option");
-    selectedEl.setAttribute(
-      "type",
-      selectedOpt.key === "dig" ? "dig" : "block"
-    );
-    if (selectedOpt.key !== "dig")
-      selectedEl.setAttribute("block", String(selectedOpt.value));
-    if (selectedOpt.key !== "dig")
-      selectedEl.setAttribute("count", String(selectedOpt.count));
-    if (this.open) selectedEl.setAttribute("selected", "");
+    selectedEl.setAttribute("type", String(selectedOpt.value));
+    selectedEl.setAttribute("count", String(selectedOpt.count));
+    if (this.selected === selectedOpt.value) {
+      selectedEl.setAttribute("selected", "");
+    }
     selectedEl.onclick = this.handleToggle;
 
     dropdownCtrl.appendChild(selectedEl);
@@ -175,23 +199,23 @@ class HudDropdown extends HTMLElement {
 }
 customElements.define("hud-dropdown", HudDropdown);
 
-// --- <game-hud> ---
+// --- <amelcraft-hud> ---
 class HudRoot extends HTMLElement {
-  private options: { key: string; value: number | "dig"; count: number }[] = [];
-  private selected: number | "dig" = "dig";
-  private onSelect: (value: number | "dig") => void = () => {};
+  private options: HudDropdown["options"] = [];
+  private selected: Option = "move";
+  private onSelect: (value: Option) => void = () => {};
 
   set data({
     blockKeys,
     selected,
     onSelect,
   }: {
-    blockKeys: { key: string; value: number; count: number }[];
-    selected?: number | "dig";
-    onSelect: (value: number | "dig") => void;
+    blockKeys: HudDropdown["options"];
+    selected?: Option;
+    onSelect: (value: Option) => void;
   }) {
-    this.options = [{ key: "dig", value: "dig", count: 0 }, ...blockKeys];
-    this.selected = selected ?? "dig";
+    this.options = blockKeys;
+    this.selected = selected ?? "collect";
     this.onSelect = onSelect;
     this.render();
   }
@@ -201,7 +225,7 @@ class HudRoot extends HTMLElement {
     this.render();
   }
 
-  private handleSelect = (value: number | "dig") => {
+  private handleSelect = (value: Option) => {
     this.selected = value;
     this.onSelect(value);
     this.render();
@@ -209,15 +233,20 @@ class HudRoot extends HTMLElement {
 
   render() {
     if (!this.shadowRoot) return;
+
     this.shadowRoot.innerHTML = "";
     this.injectStyles();
-    this.style.display = "block";
-    this.style.position = "fixed";
-    this.style.bottom = "0";
-    this.style.left = "0";
-    this.style.right = "0";
-    this.style.zIndex = "9999";
-    this.style.padding = "1em";
+
+    const hud = document.createElement("div");
+    hud.className = "hud";
+    this.shadowRoot.appendChild(hud);
+
+    const moveOption = document.createElement("hud-option");
+    moveOption.className = "with-frame with-shadow";
+    moveOption.setAttribute("type", "move");
+    if (this.selected === "move") moveOption.setAttribute("selected", "");
+    moveOption.onclick = () => this.handleSelect("move");
+    hud.appendChild(moveOption);
 
     const dropdown = document.createElement("hud-dropdown") as any;
     (dropdown as any).data = {
@@ -225,7 +254,14 @@ class HudRoot extends HTMLElement {
       selected: this.selected,
       onSelect: this.handleSelect,
     };
-    this.shadowRoot.appendChild(dropdown);
+    hud.appendChild(dropdown);
+
+    const collectOption = document.createElement("hud-option");
+    collectOption.className = "with-frame with-shadow";
+    collectOption.setAttribute("type", "collect");
+    if (this.selected === "collect") collectOption.setAttribute("selected", "");
+    collectOption.onclick = () => this.handleSelect("collect");
+    hud.appendChild(collectOption);
   }
 
   injectStyles() {
@@ -243,6 +279,18 @@ customElements.define("amelcraft-hud", HudRoot);
 export { HudRoot as HUD };
 
 const rootStyle = `
+  .hud {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    padding: 1em;
+    display: flex;
+    gap: 1em;
+    justify-content: center;
+    align-items: end;
+  }
   .hud-dropdown-root {
     /* pointer-events: none; */
     display: flex;
@@ -264,7 +312,7 @@ const rootStyle = `
     pointer-events: auto;
     gap: 0.5em;
   }
-  .hud-btn {
+  button {
     background: none;
     border: none;
     border-radius: 0.7em;
@@ -281,11 +329,20 @@ const rootStyle = `
     min-height: 64px;
     overflow: hidden;
   }
-  .hud-btn.selected {
+  button.selected {
     background: linear-gradient(90deg, #fff2, #fff4);
     opacity: 1;
     box-shadow: 0 0 0 2px #fff6;
     border-radius: 0.7em;
+  }
+  .hud-icon {
+    width: 64px;
+    height: 64px;
+    font-size: 48px;
+    line-height: 64px;
+    text-align: center;
+    user-select: none;
+    box-sizing: border-box;
   }
   .hud-badge {
     position: absolute;
@@ -301,11 +358,11 @@ const rootStyle = `
     pointer-events: none;
   }
   @media (max-width: 600px) {
-    .hud-btn { min-width: 48px; min-height: 48px; }
+    button { min-width: 48px; min-height: 48px; }
     .hud-badge { font-size: 0.95em; }
   }
   @media (max-width: 400px) {
-    .hud-btn { min-width: 36px; min-height: 36px; }
+    button { min-width: 36px; min-height: 36px; }
     .hud-badge { font-size: 0.85em; }
   }
   .with-frame {

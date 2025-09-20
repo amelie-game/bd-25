@@ -2,6 +2,7 @@
 // === DEPENDENCIES ===
 // ===================
 import Phaser from "phaser";
+import type { Option } from "../hud/HUD.js";
 import "../hud/HUD.js";
 import { TILE_SIZE } from "../main";
 import { assets } from "../assets";
@@ -58,7 +59,7 @@ export class GameScene extends Phaser.Scene {
   private lastPinchDist: number | null = null;
   private highlightGraphics!: Phaser.GameObjects.Graphics;
   private hudEl: HTMLElement | null = null;
-  private selectedTool: number | "dig" = "dig";
+  private selectedTool: Option = "collect";
   private inventory: InventorySlot[] = [];
 
   constructor() {
@@ -281,7 +282,7 @@ export class GameScene extends Phaser.Scene {
     this.hudEl = document.createElement("amelcraft-hud");
     document.body.appendChild(this.hudEl);
     this.updateHUD();
-    (this.hudEl as any).onSelect = (val: number | "dig") => {
+    (this.hudEl as any).onSelect = (val: Option) => {
       this.selectedTool = val;
       this.updateHUD();
     };
@@ -335,7 +336,7 @@ export class GameScene extends Phaser.Scene {
         this.inventory.splice(idx, 1);
         // Deselect if this was the selected tool
         if (this.selectedTool === block) {
-          this.selectedTool = "dig";
+          this.selectedTool = "collect";
         }
       }
       this.updateHUD();
@@ -371,7 +372,7 @@ export class GameScene extends Phaser.Scene {
     (this.hudEl as any).data = {
       blockKeys,
       selected: this.selectedTool,
-      onSelect: (val: number | "dig") => {
+      onSelect: (val: Option) => {
         this.selectedTool = val;
         this.updateHUD();
       },
@@ -576,7 +577,7 @@ export class GameScene extends Phaser.Scene {
     this.lastDirection = dir;
     this.player.play(this.getAnim("idle", dir), true);
     if (!this.groundLayer) return;
-    if (this.selectedTool === "dig") return;
+    if (this.selectedTool === "collect") return;
     // Only place if player has at least one of the selected block
     if (
       typeof this.selectedTool === "number" &&
@@ -800,7 +801,7 @@ export class GameScene extends Phaser.Scene {
       // If pointer is still down, start new collection on new tile (if dig tool and in range)
       if (
         this.input.activePointer.isDown &&
-        this.selectedTool === "dig" &&
+        this.selectedTool === "collect" &&
         this.isInInteractRange(tx, ty)
       ) {
         this.pointerDownTile = { x: tx, y: ty };
@@ -817,7 +818,7 @@ export class GameScene extends Phaser.Scene {
     this.pointerDownTile = { x: tx, y: ty };
     this.highlightTile = { x: tx, y: ty };
     // Start collection state immediately if dig tool is selected and in range
-    if (this.selectedTool === "dig" && this.isInInteractRange(tx, ty)) {
+    if (this.selectedTool === "collect" && this.isInInteractRange(tx, ty)) {
       this.startBlockCollection(tx, ty);
     }
   }
