@@ -226,7 +226,7 @@ export class World {
       // Apply tiles
       for (let x = 0; x < width; x++) {
         for (let y = 0; y < height; y++) {
-          this.groundLayer.putTileAt(mask[x][y] ? GRASS : WATER, x, y);
+          this.putTileAt(mask[x][y] ? GRASS : WATER, x, y);
         }
       }
     }
