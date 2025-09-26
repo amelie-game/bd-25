@@ -2,7 +2,7 @@
 // === DEPENDENCIES ===
 // ===================
 import Phaser from "phaser";
-import type { Option } from "../hud/HUD.js";
+import type { Option } from "../types";
 import "../hud/HUD.js";
 import { TILE_SIZE } from "../main";
 import { assets } from "../assets";
