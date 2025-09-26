@@ -6,6 +6,7 @@ import type { Option } from "../types";
 import "../hud/HUD.js";
 import { TILE_SIZE } from "../main";
 import { assets } from "../assets";
+import { World } from "../modules/World";
 
 type Direction = "right" | "left" | "up" | "down";
 type Movement = "walk" | "idle";
@@ -15,8 +16,6 @@ type Movement = "walk" | "idle";
 // ===================
 // Block collection time in milliseconds
 const COLLECT_BLOCK_TIME_MS = 1000;
-const WORLD_COLS = 100;
-const WORLD_ROWS = 100;
 const INTERACT_RANGE = 2; // tiles
 const MOVE_SPEED = 248; // pixels per second
 const MIN_ZOOM = 0.2;
@@ -34,7 +33,6 @@ const STACK_SIZE = 99;
 export class GameScene extends Phaser.Scene {
   // Timer for delayed collection start (not Phaser timer)
   private pendingCollectionTimeout: any = null;
-  private groundLayer!: Phaser.Tilemaps.TilemapLayer;
   private camera!: Phaser.Cameras.Scene2D.Camera;
   private player!: Phaser.GameObjects.Sprite;
   private target: { x: number; y: number } | null = null;
@@ -52,8 +50,8 @@ export class GameScene extends Phaser.Scene {
   private INTERACT_RANGE = INTERACT_RANGE; // tiles
   private moveSpeed = MOVE_SPEED; // pixels per second (from PoC)
   private lastDirection: Direction = "down";
-  private worldPixelWidth = WORLD_COLS * TILE_SIZE;
-  private worldPixelHeight = WORLD_ROWS * TILE_SIZE;
+  private worldPixelWidth = World.COLUMNS * TILE_SIZE;
+  private worldPixelHeight = World.ROWS * TILE_SIZE;
   private minZoom = MIN_ZOOM;
   private maxZoom = MAX_ZOOM;
   private lastPinchDist: number | null = null;
@@ -61,6 +59,8 @@ export class GameScene extends Phaser.Scene {
   private hudEl: HTMLElement | null = null;
   private selectedTool: Option = "collect";
   private inventory: InventorySlot[] = [];
+
+  private world!: World;
 
   constructor() {
     super("GameScene");
@@ -117,7 +117,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getTileAt(tx: number, ty: number) {
-    return this.groundLayer?.getTileAt(tx, ty);
+    return this.world.getTileAt(tx, ty);
   }
 
   private isInInteractRange(tx: number, ty: number): boolean {
@@ -127,17 +127,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private isWalkable(worldX: number, worldY: number): boolean {
-    if (!this.groundLayer) return false;
-
-    const tile = this.groundLayer.getTileAtWorldXY(worldX, worldY, true);
-    if (!tile) return false;
-
-    switch (tile.index) {
-      case assets.blocks.sprites.Water:
-        return false;
-      default:
-        return true;
-    }
+    return this.world.isWalkable(worldX, worldY);
   }
 
   create() {
@@ -189,42 +179,11 @@ export class GameScene extends Phaser.Scene {
       });
     }
 
-    // --- Tilemap and Tileset ---
-    const map = this.make.tilemap({
-      tileWidth: TILE_SIZE,
-      tileHeight: TILE_SIZE,
-      width: WORLD_COLS,
-      height: WORLD_ROWS,
-    });
-    if (!map) {
-      console.warn("Tilemap creation failed");
-      return;
-    }
-    const tileset = map.addTilesetImage(assets.blocks.key);
-    if (!tileset) {
-      console.warn("Tileset creation failed for key:", assets.blocks.key);
-      return;
-    }
-    const layer = map.createBlankLayer("ground", tileset);
-    if (!layer) {
-      console.warn("Tilemap layer creation failed");
-      return;
-    }
-    this.groundLayer = layer as Phaser.Tilemaps.TilemapLayer;
-    // Generate island terrain (grass & water)
-    this.groundLayer.fill(
-      assets.blocks.sprites.Water,
-      0,
-      0,
-      WORLD_COLS,
-      WORLD_ROWS
-    ); // start as water
-    this.generateIsland();
-    this.groundLayer.setDepth(0);
+    this.world = new World(this);
 
     // --- Player Sprite ---
-    const startX = (WORLD_COLS / 2) * TILE_SIZE + TILE_SIZE / 2;
-    const startY = (WORLD_ROWS / 2) * TILE_SIZE + TILE_SIZE / 2;
+    const startX = (World.COLUMNS / 2) * TILE_SIZE + TILE_SIZE / 2;
+    const startY = (World.ROWS / 2) * TILE_SIZE + TILE_SIZE / 2;
 
     // Use a valid numeric frame index or fallback to 0
     const defaultFrame = 0;
@@ -496,7 +455,6 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateHighlights() {
-    if (!this.groundLayer) return;
     this.highlightGraphics.clear();
     // Always highlight interactable blocks when standing still
     if (this.alwaysHighlightTiles && this.alwaysHighlightTiles.length > 0) {
@@ -582,14 +540,14 @@ export class GameScene extends Phaser.Scene {
     const dir = this.getDirection(dx, dy);
     this.lastDirection = dir;
     this.player.play(this.getAnim("idle", dir), true);
-    if (!this.groundLayer) return;
+    if (!this.world) return;
     if (this.selectedTool === "collect") return;
     // Only place if player has at least one of the selected block
     if (
       typeof this.selectedTool === "number" &&
       this.hasBlockInInventory(this.selectedTool)
     ) {
-      this.groundLayer.putTileAt(this.selectedTool, tx, ty);
+      this.world.putTileAt(this.selectedTool, tx, ty);
       this.removeFromInventory(this.selectedTool);
     } else {
       // Placement canceled: no block in inventory
@@ -597,189 +555,9 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // Animations are now created in TitleScene using createFromAseprite
-
-  // Camera dead-zone logic removed: camera now always centers on player after movement.
-
-  private screenToWorld(screenX: number, screenY: number) {
-    const cam = this.camera;
-    return {
-      x: cam.scrollX + screenX / cam.zoom,
-      y: cam.scrollY + screenY / cam.zoom,
-    };
-  }
-
   // ===================
-  // === WORLD GENERATION ===
+  // === POINTER/TOUCH HANDLERS ===
   // ===================
-  private generateIsland() {
-    if (!this.groundLayer) return;
-    const GRASS = assets.blocks.sprites.Grass; // tileset index for grass
-    const WATER = assets.blocks.sprites.Water; // tileset index for water
-    const width = WORLD_COLS;
-    const height = WORLD_ROWS;
-    const total = width * height;
-    // Target grass ratio between 0.60 and 0.80
-    const targetRatio = Phaser.Math.FloatBetween(0.63, 0.77);
-    const cx = width / 2;
-    const cy = height / 2;
-    // Random elliptical radii (gives large-scale variety)
-    const baseArea = targetRatio * total;
-    const baseRadius = Math.sqrt(baseArea / Math.PI);
-    const radX = baseRadius * Phaser.Math.FloatBetween(0.9, 1.35);
-    const radY = baseRadius * Phaser.Math.FloatBetween(0.85, 1.25);
-
-    // Layered value noise parameters
-    const off1x = Math.random() * 1000;
-    const off1y = Math.random() * 1000;
-    const off2x = Math.random() * 2000;
-    const off2y = Math.random() * 2000;
-    const off3x = Math.random() * 3000;
-    const off3y = Math.random() * 3000;
-    const s1 = Phaser.Math.FloatBetween(0.025, 0.045); // large features
-    const s2 = s1 * 2.3; // medium
-    const s3 = s1 * 5.1; // small
-    const noiseScale = Phaser.Math.FloatBetween(0.32, 0.4); // influence of noise on shoreline
-
-    // Prepare mask
-    const mask: boolean[][] = Array.from({ length: width }, () =>
-      Array<boolean>(height).fill(false)
-    );
-    let grassCount = 0;
-
-    const valueNoise = (x: number, y: number): number => {
-      // 2D value noise with bilinear interpolation & smoothstep
-      const xi = Math.floor(x);
-      const yi = Math.floor(y);
-      const xf = x - xi;
-      const yf = y - yi;
-      const smooth = (t: number) => t * t * (3 - 2 * t);
-      const rnd = (ix: number, iy: number) => {
-        let n = ix * 374761393 + iy * 668265263;
-        n = (n ^ (n >> 13)) * 1274126177;
-        n = n ^ (n >> 16);
-        return (n & 0xffffffff) / 0xffffffff; // 0..1
-      };
-      const v00 = rnd(xi, yi);
-      const v10 = rnd(xi + 1, yi);
-      const v01 = rnd(xi, yi + 1);
-      const v11 = rnd(xi + 1, yi + 1);
-      const sx = smooth(xf);
-      const sy = smooth(yf);
-      const ix0 = Phaser.Math.Linear(v00, v10, sx);
-      const ix1 = Phaser.Math.Linear(v01, v11, sx);
-      const v = Phaser.Math.Linear(ix0, ix1, sy);
-      return v * 2 - 1; // -1..1
-    };
-
-    for (let x = 0; x < width; x++) {
-      for (let y = 0; y < height; y++) {
-        const dx = x - cx + 0.5;
-        const dy = y - cy + 0.5;
-        const distNorm = Math.sqrt(
-          (dx * dx) / (radX * radX) + (dy * dy) / (radY * radY)
-        );
-        // Layered coherent noise (multi-octave)
-        const n1 = valueNoise(x * s1 + off1x, y * s1 + off1y);
-        const n2 = valueNoise(x * s2 + off2x, y * s2 + off2y);
-        const n3 = valueNoise(x * s3 + off3x, y * s3 + off3y);
-        const layered = 0.55 * n1 + 0.3 * n2 + 0.15 * n3; // already in -1..1 range weighting
-        // Adjust shoreline: subtract noise so negative noise pushes outward (larger island in some lobes)
-        const shape = distNorm - layered * noiseScale;
-        const inside = shape < 1;
-        if (inside) {
-          mask[x][y] = true;
-          grassCount++;
-        }
-      }
-    }
-
-    // Edge smoothing (same approach as before)
-    const dirs8 = [
-      [-1, -1],
-      [0, -1],
-      [1, -1],
-      [-1, 0],
-      /*self*/ [1, 0],
-      [-1, 1],
-      [0, 1],
-      [1, 1],
-    ];
-    const smoothPass = () => {
-      const copy = mask.map((c) => c.slice());
-      for (let x = 1; x < width - 1; x++) {
-        for (let y = 1; y < height - 1; y++) {
-          let count = 0;
-          for (const [dx, dy] of dirs8) if (copy[x + dx][y + dy]) count++;
-          if (count >= 5) mask[x][y] = true;
-          else if (count <= 2) mask[x][y] = false;
-        }
-      }
-    };
-    smoothPass();
-
-    // Recount after smoothing
-    grassCount = 0;
-    for (let x = 0; x < width; x++)
-      for (let y = 0; y < height; y++) if (mask[x][y]) grassCount++;
-    let ratio = grassCount / total;
-
-    // Ratio adjustment to stay within [0.6,0.8]
-    if (ratio < 0.6 || ratio > 0.8) {
-      const edgeGrass: Array<[number, number]> = [];
-      const edgeWater: Array<[number, number]> = [];
-      const dirs4 = [
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1],
-      ];
-      for (let x = 1; x < width - 1; x++) {
-        for (let y = 1; y < height - 1; y++) {
-          const isGrass = mask[x][y];
-          let boundary = false;
-          for (const [dx, dy] of dirs4) {
-            const nx = x + dx,
-              ny = y + dy;
-            if (mask[nx][ny] !== isGrass) {
-              boundary = true;
-              break;
-            }
-          }
-          if (boundary) (isGrass ? edgeGrass : edgeWater).push([x, y]);
-        }
-      }
-      if (ratio < 0.6) {
-        Phaser.Utils.Array.Shuffle(edgeWater);
-        for (const [x, y] of edgeWater) {
-          if (ratio >= 0.6) break;
-          if (!mask[x][y]) {
-            mask[x][y] = true;
-            grassCount++;
-            ratio = grassCount / total;
-          }
-        }
-      } else {
-        Phaser.Utils.Array.Shuffle(edgeGrass);
-        for (const [x, y] of edgeGrass) {
-          if (ratio <= 0.8) break;
-          if (mask[x][y]) {
-            mask[x][y] = false;
-            grassCount--;
-            ratio = grassCount / total;
-          }
-        }
-      }
-    }
-
-    // Apply tiles
-    for (let x = 0; x < width; x++) {
-      for (let y = 0; y < height; y++) {
-        this.groundLayer.putTileAt(mask[x][y] ? GRASS : WATER, x, y);
-      }
-    }
-  }
-
   private setupUnifiedPointerControls() {
     // Unified pointer/touch event handling
     this.input.on("pointermove", this.handlePointerMove, this);
@@ -787,9 +565,6 @@ export class GameScene extends Phaser.Scene {
     this.input.on("pointerup", this.handlePointerUp, this);
   }
 
-  // ===================
-  // === POINTER/TOUCH HANDLERS ===
-  // ===================
   private handlePointerMove(p: Phaser.Input.Pointer) {
     const tx = Math.floor(p.worldX / TILE_SIZE);
     const ty = Math.floor(p.worldY / TILE_SIZE);
@@ -865,7 +640,6 @@ export class GameScene extends Phaser.Scene {
     ty: number,
     action: "place" | "start-collect"
   ): boolean {
-    if (!this.groundLayer) return false;
     const px = Math.floor(this.player.x / TILE_SIZE);
     const py = Math.floor(this.player.y / TILE_SIZE);
     const dist = Math.abs(tx - px) + Math.abs(ty - py);
@@ -887,8 +661,10 @@ export class GameScene extends Phaser.Scene {
   private startBlockCollection(tx: number, ty: number) {
     // Cancel any existing collection
     if (this.collectingBlock) this.cancelBlockCollection();
-    const tile = this.groundLayer.getTileAt(tx, ty);
+
+    const tile = this.world.getTileAt(tx, ty);
     if (!tile) return;
+
     // Make PC turn toward the block being collected
     const px = Math.floor(this.player.x / TILE_SIZE);
     const py = Math.floor(this.player.y / TILE_SIZE);
@@ -941,33 +717,32 @@ export class GameScene extends Phaser.Scene {
 
   // Collect block logic (called after 2s timer)
   private handleBlockCollection(tx: number, ty: number) {
-    if (!this.groundLayer) return;
     const GRASS = assets.blocks.sprites.Grass;
     const WATER = assets.blocks.sprites.Water;
     const GROUND = assets.blocks.sprites.Brown;
     const SNOW = assets.blocks.sprites.Snow;
     const SAND = assets.blocks.sprites.Yellow;
-    const tile = this.groundLayer.getTileAt(tx, ty);
+    const tile = this.world.getTileAt(tx, ty);
     if (tile) {
       // Try to add to inventory; if full, just remove block
       const added = this.addToInventory(tile.index);
       if (tile.index === GRASS) {
         // Grass: replace with ground
-        this.groundLayer.putTileAt(GROUND, tx, ty);
+        this.world.putTileAt(GROUND, tx, ty);
       } else if (tile.index === GROUND) {
         // Ground: replace with water
-        this.groundLayer.putTileAt(WATER, tx, ty);
+        this.world.putTileAt(WATER, tx, ty);
       } else if (tile.index === WATER) {
         // Water: do not replace
       } else if (tile.index === SNOW) {
         // Snow: replace with water
-        this.groundLayer.putTileAt(WATER, tx, ty);
+        this.world.putTileAt(WATER, tx, ty);
       } else if (tile.index === SAND) {
         // Sand: replace with water
-        this.groundLayer.putTileAt(WATER, tx, ty);
+        this.world.putTileAt(WATER, tx, ty);
       } else {
         // All other blocks: replace with water
-        this.groundLayer.putTileAt(WATER, tx, ty);
+        this.world.putTileAt(WATER, tx, ty);
       }
       // Optionally: show feedback if not added (inventory full)
     }
