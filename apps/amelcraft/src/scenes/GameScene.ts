@@ -369,14 +369,20 @@ export class GameScene extends Phaser.Scene {
           sprite: spriteName ? spriteName : undefined,
         };
       });
-    (this.hudEl as any).data = {
-      blockKeys,
-      selected: this.selectedTool,
-      onSelect: (val: Option) => {
-        this.selectedTool = val;
-        this.updateHUD();
-      },
-    };
+
+    if ((this.hudEl as any).data) {
+      (this.hudEl as any).data.blockKeys = blockKeys;
+      (this.hudEl as any).data.selectedTool = this.selectedTool;
+    } else {
+      (this.hudEl as any).data = {
+        blockKeys,
+        selected: this.selectedTool,
+        onSelect: (val: Option) => {
+          this.selectedTool = val;
+          this.updateHUD();
+        },
+      };
+    }
   }
 
   // Grid removed; ground now represented by tilemap
@@ -710,7 +716,6 @@ export class GameScene extends Phaser.Scene {
         }
       }
     };
-    smoothPass();
     smoothPass();
 
     // Recount after smoothing

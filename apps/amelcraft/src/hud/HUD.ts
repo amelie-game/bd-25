@@ -1,4 +1,4 @@
-import { assets } from "../assets";
+import { Block, Option, toBlock, toOption } from "../types";
 
 // --- <hud-badge> ---
 class HudBadge extends HTMLElement {
@@ -19,98 +19,93 @@ class HudBadge extends HTMLElement {
 }
 customElements.define("hud-badge", HudBadge);
 
-const Block = Object.values(assets.blocks.sprites) as ReadonlyArray<
-  (typeof assets.blocks.sprites)[keyof typeof assets.blocks.sprites]
->;
-type Block = (typeof Block)[number];
-
-const Mode = ["collect", "move"] as const;
-type Mode = (typeof Mode)[number];
-
-const Option = [...Mode, ...Block] as const;
-export type Option = (typeof Option)[number];
-
-function toOptionType(value: unknown): Option {
-  if (isFinite(Number(value)) && Block.includes(Number(value) as Block)) {
-    return Number(value) as Block;
-  }
-  if (Mode.includes(value as Mode)) {
-    return value as Mode;
-  }
-
-  throw new Error(`Invalid option type: ${value}`);
-}
-
 // --- <hud-option> ---
 class HudOption extends HTMLElement {
+  private static getContent(type: unknown, count?: string | null) {
+    try {
+      const option = toOption(type);
+
+      switch (option) {
+        case "collect": {
+          const icon = document.createElement("div");
+          icon.className = "hud-icon";
+          icon.innerHTML = "⛏️";
+          return [icon];
+        }
+        case "move": {
+          const icon = document.createElement("div");
+          icon.className = "hud-icon";
+          icon.innerHTML = "🚶";
+          return [icon];
+        }
+        default: {
+          const canvas = document.createElement("canvas");
+          canvas.width = 64;
+          canvas.height = 64;
+          canvas.style.borderRadius = "0.7em";
+          canvas.style.background = "#222";
+          canvas.style.display = "block";
+          canvas.style.boxSizing = "border-box";
+          const ctx = canvas.getContext("2d");
+          const w: any = window;
+          if (ctx && w["game"] && w["game"].textures) {
+            const tex = w["game"].textures.get("blocks");
+            if (tex && type !== null) {
+              const frame = tex.get(option);
+              if (frame) {
+                const source = frame.source.image;
+                ctx.drawImage(
+                  source,
+                  frame.cutX,
+                  frame.cutY,
+                  frame.width,
+                  frame.height,
+                  0,
+                  0,
+                  64,
+                  64
+                );
+              }
+            }
+          }
+          if (count !== null && count !== undefined) {
+            const badge = document.createElement("hud-badge");
+            badge.setAttribute("count", count);
+            return [canvas, badge];
+          }
+          return [canvas];
+        }
+      }
+    } catch (e) {
+      console.error("HudOption.getContent error", e);
+    }
+    return null;
+  }
   static get observedAttributes() {
     return ["selected", "type", "count"];
   }
+
   attributeChangedCallback() {
     this.render();
   }
+
   connectedCallback() {
     this.render();
   }
+
   render() {
     const type = this.getAttribute("type");
-    toOptionType(type);
-
     const selected = this.hasAttribute("selected");
     const count = this.getAttribute("count");
 
     this.innerHTML = "";
     const btn = document.createElement("button");
     btn.className = selected ? " selected" : "";
-
-    if (type === "collect") {
-      const icon = document.createElement("div");
-      icon.className = "hud-icon";
-      icon.innerHTML = "⛏️";
-      btn.appendChild(icon);
-    } else if (type === "move") {
-      const icon = document.createElement("div");
-      icon.className = "hud-icon";
-      icon.innerHTML = "🚶";
-      btn.appendChild(icon);
-    } else {
-      const canvas = document.createElement("canvas");
-      canvas.width = 64;
-      canvas.height = 64;
-      canvas.style.borderRadius = "0.7em";
-      canvas.style.background = "#222";
-      canvas.style.display = "block";
-      canvas.style.boxSizing = "border-box";
-      const ctx = canvas.getContext("2d");
-      const w: any = window;
-      if (ctx && w["game"] && w["game"].textures) {
-        const tex = w["game"].textures.get("blocks");
-        if (tex) {
-          const frame = tex.get(type);
-          if (frame) {
-            const source = frame.source.image;
-            ctx.drawImage(
-              source,
-              frame.cutX,
-              frame.cutY,
-              frame.width,
-              frame.height,
-              0,
-              0,
-              64,
-              64
-            );
-          }
-        }
-      }
-      btn.appendChild(canvas);
-      if (count !== null && count !== undefined) {
-        const badge = document.createElement("hud-badge");
-        badge.setAttribute("count", count);
-        btn.appendChild(badge);
-      }
-    }
     this.appendChild(btn);
+
+    HudOption.getContent(type, count)?.forEach((child) =>
+      btn.appendChild(child)
+    );
   }
 }
 customElements.define("hud-option", HudOption);
@@ -125,15 +120,22 @@ class HudDropdown extends HTMLElement {
   set data({
     options,
     selected,
+    open,
     onSelect,
   }: {
     options: HudDropdown["options"];
     selected: HudDropdown["selected"];
+    open: HudDropdown["open"];
     onSelect: HudDropdown["onSelect"];
   }) {
     this.options = options;
     this.selected = selected;
+    this.open = open;
     this.onSelect = onSelect;
+    this.render();
+  }
+
+  attributeChangedCallback() {
     this.render();
   }
 
@@ -154,47 +156,22 @@ class HudDropdown extends HTMLElement {
 
   render() {
     this.innerHTML = "";
-    if (!this.options || this.options.length === 0) return;
-    const root = document.createElement("div");
-    root.className = "hud-dropdown-root";
+    if (!this.options || this.options.length === 0 || !this.open) return;
 
-    // Selected option (always visible)
-    const selectedOpt =
-      this.options.find((o) => o.value === this.selected) || this.options[0];
+    const list = document.createElement("div");
+    list.className = "hud-dropdown-list with-frame with-shadow";
+    this.appendChild(list);
 
-    if (this.open) {
-      const list = document.createElement("div");
-      list.className = "hud-dropdown-list with-frame with-shadow";
-      root.appendChild(list);
-
-      for (const opt of this.options) {
-        const optEl = document.createElement("hud-option");
-        optEl.setAttribute("type", String(opt.value));
-        optEl.setAttribute("count", String(opt.count));
-        if (this.selected === opt.value) {
-          optEl.setAttribute("selected", "");
-        }
-        optEl.onclick = () => this.handleSelect(opt.value);
-        list.appendChild(optEl);
+    for (const opt of this.options) {
+      const optEl = document.createElement("hud-option");
+      optEl.setAttribute("type", String(opt.value));
+      optEl.setAttribute("count", String(opt.count));
+      if (this.selected === opt.value) {
+        optEl.setAttribute("selected", "");
       }
+      optEl.onclick = () => this.handleSelect(opt.value);
+      list.appendChild(optEl);
     }
-
-    const dropdownCtrl = document.createElement("div");
-    dropdownCtrl.className = "with-frame with-shadow";
-
-    const selectedEl = document.createElement("hud-option");
-    selectedEl.setAttribute("type", String(selectedOpt.value));
-    selectedEl.setAttribute("count", String(selectedOpt.count));
-    if (this.selected === selectedOpt.value) {
-      selectedEl.setAttribute("selected", "");
-    }
-    selectedEl.onclick = this.handleToggle;
-
-    dropdownCtrl.appendChild(selectedEl);
-    root.appendChild(dropdownCtrl);
-
-    // Dropdown list
-    this.appendChild(root);
   }
 }
 customElements.define("hud-dropdown", HudDropdown);
@@ -204,6 +181,7 @@ class HudRoot extends HTMLElement {
   private options: HudDropdown["options"] = [];
   private selected: Option = "move";
   private onSelect: (value: Option) => void = () => {};
+  private dropdownOpen = false;
 
   set data({
     blockKeys,
@@ -226,6 +204,7 @@ class HudRoot extends HTMLElement {
   }
 
   private handleSelect = (value: Option) => {
+    this.dropdownOpen = false;
     this.selected = value;
     this.onSelect(value);
     this.render();
@@ -241,27 +220,61 @@ class HudRoot extends HTMLElement {
     hud.className = "hud";
     this.shadowRoot.appendChild(hud);
 
-    const moveOption = document.createElement("hud-option");
-    moveOption.className = "with-frame with-shadow";
-    moveOption.setAttribute("type", "move");
-    if (this.selected === "move") moveOption.setAttribute("selected", "");
-    moveOption.onclick = () => this.handleSelect("move");
-    hud.appendChild(moveOption);
-
     const dropdown = document.createElement("hud-dropdown") as any;
     (dropdown as any).data = {
       options: this.options,
       selected: this.selected,
       onSelect: this.handleSelect,
+      open: this.dropdownOpen,
     };
     hud.appendChild(dropdown);
+
+    const controls = document.createElement("div");
+    controls.className = "hud-controls";
+    hud.appendChild(controls);
+
+    const moveOption = document.createElement("hud-option");
+    moveOption.className = "with-frame with-shadow";
+    moveOption.setAttribute("type", "move");
+    if (this.selected === "move") moveOption.setAttribute("selected", "");
+    moveOption.onclick = () => this.handleSelect("move");
+    controls.appendChild(moveOption);
+
+    const selectedBlock =
+      this.selected !== "move" && this.selected !== "collect"
+        ? this.selected
+        : null;
+
+    const blockOption = document.createElement("hud-option");
+    blockOption.className = "with-frame with-shadow";
+
+    if (selectedBlock !== null) {
+      blockOption.setAttribute("type", String(selectedBlock));
+      blockOption.setAttribute("selected", "");
+      blockOption.setAttribute(
+        "count",
+        String(
+          this.options.find((opt) => opt.value === selectedBlock)?.count || 0
+        )
+      );
+    }
+    blockOption.onclick = () => {
+      this.dropdownOpen = !this.dropdownOpen;
+      (dropdown as any).data = {
+        options: this.options,
+        selected: this.selected,
+        onSelect: this.handleSelect,
+        open: this.dropdownOpen,
+      };
+    };
+    controls.appendChild(blockOption);
 
     const collectOption = document.createElement("hud-option");
     collectOption.className = "with-frame with-shadow";
     collectOption.setAttribute("type", "collect");
     if (this.selected === "collect") collectOption.setAttribute("selected", "");
     collectOption.onclick = () => this.handleSelect("collect");
-    hud.appendChild(collectOption);
+    controls.appendChild(collectOption);
   }
 
   injectStyles() {
@@ -287,13 +300,6 @@ const rootStyle = `
     z-index: 9999;
     padding: 1em;
     display: flex;
-    gap: 1em;
-    justify-content: center;
-    align-items: end;
-  }
-  .hud-dropdown-root {
-    /* pointer-events: none; */
-    display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
@@ -304,19 +310,24 @@ const rootStyle = `
     width: auto;
     max-width: 100%;
     box-sizing: border-box;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, 64px);
-    grid-auto-rows: 64px;
+    display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     align-content: end;
     pointer-events: auto;
-    gap: 0.5em;
+    gap: 0.75em;
+  }
+  .hud-controls {
+    display: flex;
+    gap: 1em;
+    justify-content: center;
+    align-items: end;
   }
   button {
     background: none;
     border: none;
     border-radius: 0.7em;
-    padding: 0.1em 0.1em;
+    padding: 0;
     cursor: pointer;
     outline: none;
     transition: background 0.15s, color 0.15s;
