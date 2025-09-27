@@ -7,6 +7,7 @@ import "../hud/HUD.js";
 import { TILE_SIZE } from "../main";
 import { assets } from "../assets";
 import { World } from "../modules/World";
+import { Inventory } from "../modules/Inventory";
 
 type Direction = "right" | "left" | "up" | "down";
 type Movement = "walk" | "idle";
@@ -25,10 +26,7 @@ const MAX_ZOOM = 1;
 // ===================
 // === GAME SCENE  ===
 // ===================
-// Inventory types and constants
-type InventorySlot = { block: number; count: number };
 const INVENTORY_SLOTS = 16;
-const STACK_SIZE = 99;
 
 export class GameScene extends Phaser.Scene {
   // Timer for delayed collection start (not Phaser timer)
@@ -58,9 +56,9 @@ export class GameScene extends Phaser.Scene {
   private highlightGraphics!: Phaser.GameObjects.Graphics;
   private hudEl: HTMLElement | null = null;
   private selectedTool: Option = "collect";
-  private inventory: InventorySlot[] = [];
 
   private world!: World;
+  private inventory!: Inventory;
 
   constructor() {
     super("GameScene");
@@ -165,21 +163,9 @@ export class GameScene extends Phaser.Scene {
         this.lastPinchDist = null;
       }
     });
-    // --- Inventory Initialization ---
-    this.inventory = [];
-    // Give player a few blocks to start (for demo)
-    const blockSpriteKeys = Object.keys(assets.blocks.sprites);
-    for (let i = 0; i < Math.min(3, blockSpriteKeys.length); i++) {
-      this.inventory.push({
-        block:
-          assets.blocks.sprites[
-            blockSpriteKeys[i] as keyof typeof assets.blocks.sprites
-          ],
-        count: 10,
-      });
-    }
 
     this.world = new World(this);
+    this.inventory = new Inventory();
 
     // --- Player Sprite ---
     const startX = (World.COLUMNS / 2) * TILE_SIZE + TILE_SIZE / 2;
@@ -257,77 +243,23 @@ export class GameScene extends Phaser.Scene {
     this.events.on("destroy", cleanupHud);
   }
 
-  // === INVENTORY HELPERS ===
-  private findInventorySlot(block: number): number {
-    return this.inventory.findIndex((slot) => slot.block === block);
-  }
-
-  private addToInventory(block: number): boolean {
-    // Try to add to existing stack
-    let idx = this.findInventorySlot(block);
-    if (idx !== -1) {
-      let slot = this.inventory[idx];
-      if (slot.count < STACK_SIZE) {
-        slot.count++;
-        this.updateHUD();
-        return true;
-      } else {
-        // Stack full
-        return false;
-      }
-    }
-    // Add new slot if space
-    if (this.inventory.length < INVENTORY_SLOTS) {
-      this.inventory.push({ block, count: 1 });
-      this.updateHUD();
-      return true;
-    }
-    // Inventory full
-    return false;
-  }
-
-  private removeFromInventory(block: number): boolean {
-    let idx = this.findInventorySlot(block);
-    if (idx !== -1) {
-      let slot = this.inventory[idx];
-      slot.count--;
-      if (slot.count <= 0) {
-        this.inventory.splice(idx, 1);
-        // Deselect if this was the selected tool
-        if (this.selectedTool === block) {
-          this.selectedTool = "collect";
-        }
-      }
-      this.updateHUD();
-      return true;
-    }
-    return false;
-  }
-
-  private hasBlockInInventory(block: number): boolean {
-    let idx = this.findInventorySlot(block);
-    return idx !== -1 && this.inventory[idx].count > 0;
-  }
-
   private updateHUD() {
     if (!this.hudEl) return;
     // Only show blocks with count > 0
-    const blockKeys = this.inventory
-      .filter((slot) => slot.count > 0)
-      .map((slot) => {
-        // Try to find the sprite name for this block index
-        const spriteName = Object.keys(assets.blocks.sprites).find(
-          (k) =>
-            assets.blocks.sprites[k as keyof typeof assets.blocks.sprites] ===
-            slot.block
-        );
-        return {
-          key: slot.block,
-          value: slot.block,
-          count: slot.count,
-          sprite: spriteName ? spriteName : undefined,
-        };
-      });
+    const blockKeys = this.inventory.getSlots().map((slot) => {
+      // Try to find the sprite name for this block index
+      const spriteName = Object.keys(assets.blocks.sprites).find(
+        (k) =>
+          assets.blocks.sprites[k as keyof typeof assets.blocks.sprites] ===
+          slot.block
+      );
+      return {
+        key: slot.block,
+        value: slot.block,
+        count: slot.count,
+        sprite: spriteName ? spriteName : undefined,
+      };
+    });
 
     if ((this.hudEl as any).data) {
       (this.hudEl as any).data.blockKeys = blockKeys;
@@ -545,10 +477,18 @@ export class GameScene extends Phaser.Scene {
     // Only place if player has at least one of the selected block
     if (
       typeof this.selectedTool === "number" &&
-      this.hasBlockInInventory(this.selectedTool)
+      this.inventory.has(this.selectedTool)
     ) {
       this.world.putTileAt(this.selectedTool, tx, ty);
-      this.removeFromInventory(this.selectedTool);
+      const remaining = this.inventory.remove(this.selectedTool);
+
+      if (remaining !== false) {
+        if (remaining === 0) {
+          this.selectedTool = "collect";
+        }
+
+        this.updateHUD();
+      }
     } else {
       // Placement canceled: no block in inventory
       // Optionally: show feedback (shake HUD, etc)
@@ -725,7 +665,10 @@ export class GameScene extends Phaser.Scene {
     const tile = this.world.getTileAt(tx, ty);
     if (tile) {
       // Try to add to inventory; if full, just remove block
-      const added = this.addToInventory(tile.index);
+      if (this.inventory.add(tile.index)) {
+        this.updateHUD();
+      }
+
       if (tile.index === GRASS) {
         // Grass: replace with ground
         this.world.putTileAt(GROUND, tx, ty);
