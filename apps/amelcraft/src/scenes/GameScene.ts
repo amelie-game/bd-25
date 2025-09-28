@@ -68,6 +68,10 @@ export class GameScene extends Phaser.Scene {
     return this.selectedTool;
   }
 
+  getPlayerPosition(): [x: number, y: number] {
+    return [this.player.x, this.player.y];
+  }
+
   // ===================
   // === HELPERS: Direction, Animation, Tile, Range ===
   // ===================
@@ -147,6 +151,7 @@ export class GameScene extends Phaser.Scene {
         this.hud.update(this.inventory.getSlots(), this.selectedTool);
       },
     });
+    this.camera = new Camera({ shell: this });
 
     // --- Player Sprite ---
     const startX = (World.COLUMNS / 2) * TILE_SIZE + TILE_SIZE / 2;
@@ -196,7 +201,7 @@ export class GameScene extends Phaser.Scene {
     this.highlightGraphics = this.add.graphics();
     this.highlightGraphics.setDepth(10);
 
-    this.camera = new Camera({ shell: this });
+    this.camera.centerOn(this.player.x, this.player.y);
   }
 
   update(time: number, delta: number) {

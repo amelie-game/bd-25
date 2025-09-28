@@ -4,7 +4,7 @@ import { TILE_SIZE } from "../main";
 
 type Shell = Pick<
   GameScene,
-  "cameras" | "player" | "input" | "getWorldDimensions"
+  "cameras" | "input" | "getWorldDimensions" | "getPlayerPosition"
 >;
 
 type Params = {
@@ -28,7 +28,6 @@ export class Camera {
     this.camera.setBounds(0, 0, ...this.shell.getWorldDimensions());
     this.computeZoomBounds();
     this.camera.setZoom(Phaser.Math.Clamp(1, this.minZoom, this.maxZoom));
-    this.camera.centerOn(this.shell.player.x, this.shell.player.y);
 
     // Wheel Zoom
     this.shell.input.on(
@@ -66,8 +65,8 @@ export class Camera {
   setZoom(z: number) {
     const clamped = Phaser.Math.Clamp(z, this.minZoom, this.maxZoom);
     // Get player center before zoom
-    const playerX = this.shell.player.x;
-    const playerY = this.shell.player.y;
+
+    const [playerX, playerY] = this.shell.getPlayerPosition();
     // Set zoom
     this.camera.setZoom(clamped);
     // Center camera on player
