@@ -1,6 +1,7 @@
 import { assets } from "../assets";
+import { Block } from "../types";
 
-export type InventorySlot = { block: number; count: number };
+export type InventorySlot = { block: Block; count: number };
 
 export class Inventory {
   private stackSize: number;
@@ -27,11 +28,11 @@ export class Inventory {
     }
   }
 
-  private findSlot(block: number): number {
+  private findSlot(block: Block): number {
     return this.slots.findIndex((slot) => slot.block === block);
   }
 
-  add(block: number): boolean {
+  add(block: Block): boolean {
     let idx = this.findSlot(block);
 
     if (idx !== -1) {
@@ -55,7 +56,7 @@ export class Inventory {
     return false;
   }
 
-  remove(block: number): false | number {
+  remove(block: Block): false | number {
     let idx = this.findSlot(block);
     if (idx !== -1) {
       let slot = this.slots[idx];
@@ -69,7 +70,7 @@ export class Inventory {
     return false;
   }
 
-  has(block: number): boolean {
+  has(block: Block): boolean {
     let idx = this.findSlot(block);
     return idx !== -1 && this.slots[idx].count > 0;
   }

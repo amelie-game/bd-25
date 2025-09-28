@@ -177,7 +177,7 @@ class HudDropdown extends HTMLElement {
 customElements.define("hud-dropdown", HudDropdown);
 
 // --- <amelcraft-hud> ---
-class HudRoot extends HTMLElement {
+export class HudRoot extends HTMLElement {
   private options: HudDropdown["options"] = [];
   private selected: Option = "move";
   private onSelect: (value: Option) => void = () => {};

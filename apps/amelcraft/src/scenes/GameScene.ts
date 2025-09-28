@@ -2,12 +2,12 @@
 // === DEPENDENCIES ===
 // ===================
 import Phaser from "phaser";
-import type { Option } from "../types";
-import "../hud/HUD.js";
+import { toBlock, type Option } from "../types";
 import { TILE_SIZE } from "../main";
 import { assets } from "../assets";
 import { World } from "../modules/World";
 import { Inventory } from "../modules/Inventory";
+import { HUDManager } from "../modules/HUDManager";
 
 type Direction = "right" | "left" | "up" | "down";
 type Movement = "walk" | "idle";
@@ -26,8 +26,6 @@ const MAX_ZOOM = 1;
 // ===================
 // === GAME SCENE  ===
 // ===================
-const INVENTORY_SLOTS = 16;
-
 export class GameScene extends Phaser.Scene {
   // Timer for delayed collection start (not Phaser timer)
   private pendingCollectionTimeout: any = null;
@@ -54,14 +52,22 @@ export class GameScene extends Phaser.Scene {
   private maxZoom = MAX_ZOOM;
   private lastPinchDist: number | null = null;
   private highlightGraphics!: Phaser.GameObjects.Graphics;
-  private hudEl: HTMLElement | null = null;
-  private selectedTool: Option = "collect";
+  private selectedTool: Option = "move";
 
   private world!: World;
   private inventory!: Inventory;
+  private hud!: HUDManager;
 
   constructor() {
     super("GameScene");
+  }
+
+  getInventory() {
+    return this.inventory.getSlots();
+  }
+
+  getSelectedTool() {
+    return this.selectedTool;
   }
 
   // ===================
@@ -166,6 +172,15 @@ export class GameScene extends Phaser.Scene {
 
     this.world = new World(this);
     this.inventory = new Inventory();
+    this.hud = new HUDManager({
+      inventory: this.inventory.getSlots(),
+      selectedTool: this.selectedTool,
+      shell: this,
+      onSelect: (tool) => {
+        this.selectedTool = tool;
+        this.hud.update(this.inventory.getSlots(), this.selectedTool);
+      },
+    });
 
     // --- Player Sprite ---
     const startX = (World.COLUMNS / 2) * TILE_SIZE + TILE_SIZE / 2;
@@ -222,58 +237,6 @@ export class GameScene extends Phaser.Scene {
     this.computeZoomBounds();
     this.camera.setZoom(Phaser.Math.Clamp(1, this.minZoom, this.maxZoom));
     this.camera.centerOn(this.player.x, this.player.y);
-
-    // --- HUD ---
-    this.hudEl = document.createElement("amelcraft-hud");
-    document.body.appendChild(this.hudEl);
-    this.updateHUD();
-    (this.hudEl as any).onSelect = (val: Option) => {
-      this.selectedTool = val;
-      this.updateHUD();
-    };
-
-    // Clean up HUD on scene shutdown/destroy
-    const cleanupHud = () => {
-      if (this.hudEl) {
-        this.hudEl.remove();
-        this.hudEl = null;
-      }
-    };
-    this.events.on("shutdown", cleanupHud);
-    this.events.on("destroy", cleanupHud);
-  }
-
-  private updateHUD() {
-    if (!this.hudEl) return;
-    // Only show blocks with count > 0
-    const blockKeys = this.inventory.getSlots().map((slot) => {
-      // Try to find the sprite name for this block index
-      const spriteName = Object.keys(assets.blocks.sprites).find(
-        (k) =>
-          assets.blocks.sprites[k as keyof typeof assets.blocks.sprites] ===
-          slot.block
-      );
-      return {
-        key: slot.block,
-        value: slot.block,
-        count: slot.count,
-        sprite: spriteName ? spriteName : undefined,
-      };
-    });
-
-    if ((this.hudEl as any).data) {
-      (this.hudEl as any).data.blockKeys = blockKeys;
-      (this.hudEl as any).data.selectedTool = this.selectedTool;
-    } else {
-      (this.hudEl as any).data = {
-        blockKeys,
-        selected: this.selectedTool,
-        onSelect: (val: Option) => {
-          this.selectedTool = val;
-          this.updateHUD();
-        },
-      };
-    }
   }
 
   // Grid removed; ground now represented by tilemap
@@ -327,11 +290,6 @@ export class GameScene extends Phaser.Scene {
       // Progress bar will be rendered in updateHighlights()
     } else {
       this.collectionProgress = 0;
-    }
-    // HUD selection is always up-to-date
-    // Keep selectedTool in sync with HUD selection
-    if (this.hudEl && (this.hudEl as any).getSelected) {
-      this.selectedTool = (this.hudEl as any).getSelected();
     }
     // Highlight logic: compute and draw highlights around player
     this.updateHighlights();
@@ -484,10 +442,10 @@ export class GameScene extends Phaser.Scene {
 
       if (remaining !== false) {
         if (remaining === 0) {
-          this.selectedTool = "collect";
+          this.selectedTool = "move";
         }
 
-        this.updateHUD();
+        this.hud.update(this.inventory.getSlots(), this.selectedTool);
       }
     } else {
       // Placement canceled: no block in inventory
@@ -665,8 +623,8 @@ export class GameScene extends Phaser.Scene {
     const tile = this.world.getTileAt(tx, ty);
     if (tile) {
       // Try to add to inventory; if full, just remove block
-      if (this.inventory.add(tile.index)) {
-        this.updateHUD();
+      if (this.inventory.add(toBlock(tile.index))) {
+        this.hud.update(this.inventory.getSlots(), this.selectedTool);
       }
 
       if (tile.index === GRASS) {
