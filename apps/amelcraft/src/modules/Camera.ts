@@ -24,10 +24,6 @@ export class Camera {
   constructor({ shell }: Params) {
     this.shell = shell;
     this.camera = this.shell.cameras.main;
-    this.camera.roundPixels = true;
-    this.camera.setBounds(0, 0, ...this.shell.getWorldDimensions());
-    this.computeZoomBounds();
-    this.camera.setZoom(Phaser.Math.Clamp(1, this.minZoom, this.maxZoom));
 
     // Wheel Zoom
     this.shell.input.on(
@@ -60,25 +56,32 @@ export class Camera {
         this.lastPinchDist = null;
       }
     });
+
+    this.camera.roundPixels = true;
+    this.camera.setBounds(0, 0, ...this.shell.getWorldDimensions());
+    this.computeZoomBounds();
+    this.setZoom(Phaser.Math.Clamp(1, this.minZoom, this.maxZoom));
   }
 
   setZoom(z: number) {
     const clamped = Phaser.Math.Clamp(z, this.minZoom, this.maxZoom);
-    // Get player center before zoom
-
-    const [playerX, playerY] = this.shell.getPlayerPosition();
     // Set zoom
     this.camera.setZoom(clamped);
     // Center camera on player
-    this.camera.centerOn(playerX, playerY);
+    this.recenter();
+  }
+
+  recenter() {
+    const [playerX, playerY] = this.shell.getPlayerPosition();
+    this.centerOn(playerX, playerY);
     this.clamp();
   }
 
-  centerOn(x: number, y: number) {
+  private centerOn(x: number, y: number) {
     this.camera.centerOn(x, y);
   }
 
-  clamp() {
+  private clamp() {
     // Ensure camera view stays within world bounds after zooming
     const cam = this.camera;
     const viewW = cam.width / cam.zoom;
