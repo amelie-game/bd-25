@@ -56,10 +56,8 @@ export class HUDManager {
       onSelect: this.onSelect,
     };
   }
+
   destroy() {
     this.hudEl.remove();
-  }
-  getElement() {
-    return this.hudEl;
   }
 }
