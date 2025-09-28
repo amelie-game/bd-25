@@ -6,7 +6,11 @@ export class World {
   static COLUMNS = 100;
   static ROWS = 100;
 
-  public readonly groundLayer!: Phaser.Tilemaps.TilemapLayer;
+  private groundLayer!: Phaser.Tilemaps.TilemapLayer;
+  private dimensions: [width: number, height: number] = [
+    World.COLUMNS * TILE_SIZE,
+    World.ROWS * TILE_SIZE,
+  ];
 
   constructor(scene: Phaser.Scene) {
     // --- Tilemap and Tileset ---
@@ -231,7 +235,8 @@ export class World {
       }
     }
   }
-  getLayer() {
-    return this.groundLayer;
+
+  getDimensions(): [width: number, height: number] {
+    return this.dimensions;
   }
 }

@@ -8,6 +8,7 @@ import { assets } from "../assets";
 import { World } from "../modules/World";
 import { Inventory } from "../modules/Inventory";
 import { HUDManager } from "../modules/HUDManager";
+import { Camera } from "../modules/Camera";
 
 type Direction = "right" | "left" | "up" | "down";
 type Movement = "walk" | "idle";
@@ -19,8 +20,6 @@ type Movement = "walk" | "idle";
 const COLLECT_BLOCK_TIME_MS = 1000;
 const INTERACT_RANGE = 2; // tiles
 const MOVE_SPEED = 248; // pixels per second
-const MIN_ZOOM = 0.2;
-const MAX_ZOOM = 1;
 // ...other constants can be added here...
 
 // ===================
@@ -29,8 +28,7 @@ const MAX_ZOOM = 1;
 export class GameScene extends Phaser.Scene {
   // Timer for delayed collection start (not Phaser timer)
   private pendingCollectionTimeout: any = null;
-  private camera!: Phaser.Cameras.Scene2D.Camera;
-  private player!: Phaser.GameObjects.Sprite;
+  public player!: Phaser.GameObjects.Sprite;
   private target: { x: number; y: number } | null = null;
   private pointerDownTime: number | null = null;
   private pointerDownTile: { x: number; y: number } | null = null;
@@ -46,20 +44,20 @@ export class GameScene extends Phaser.Scene {
   private INTERACT_RANGE = INTERACT_RANGE; // tiles
   private moveSpeed = MOVE_SPEED; // pixels per second (from PoC)
   private lastDirection: Direction = "down";
-  private worldPixelWidth = World.COLUMNS * TILE_SIZE;
-  private worldPixelHeight = World.ROWS * TILE_SIZE;
-  private minZoom = MIN_ZOOM;
-  private maxZoom = MAX_ZOOM;
-  private lastPinchDist: number | null = null;
   private highlightGraphics!: Phaser.GameObjects.Graphics;
   private selectedTool: Option = "move";
 
   private world!: World;
   private inventory!: Inventory;
   private hud!: HUDManager;
+  private camera!: Camera;
 
   constructor() {
     super("GameScene");
+  }
+
+  getWorldDimensions() {
+    return this.world.getDimensions();
   }
 
   getInventory() {
@@ -137,38 +135,6 @@ export class GameScene extends Phaser.Scene {
   create() {
     // Make Phaser game instance globally available for HUD block rendering
     (window as any)["game"] = this.game;
-    // --- Camera Zoom Controls ---
-    // Mouse wheel zoom
-    this.input.on(
-      "wheel",
-      (
-        pointer: any,
-        gameObjects: any,
-        deltaX: number,
-        deltaY: number,
-        deltaZ: number
-      ) => {
-        const zoomChange = deltaY > 0 ? -0.1 : 0.1;
-        this.setZoom(this.camera.zoom + zoomChange);
-      }
-    );
-
-    // Pinch zoom for touch devices
-    this.input.on("pointermove", (pointer: any) => {
-      if (pointer.pointers && pointer.pointers.length === 2) {
-        const [p1, p2] = pointer.pointers;
-        const dist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
-        if (this.lastPinchDist !== null) {
-          const diff = dist - this.lastPinchDist;
-          if (Math.abs(diff) > 2) {
-            this.setZoom(this.camera.zoom + diff * 0.002);
-          }
-        }
-        this.lastPinchDist = dist;
-      } else {
-        this.lastPinchDist = null;
-      }
-    });
 
     this.world = new World(this);
     this.inventory = new Inventory();
@@ -230,52 +196,7 @@ export class GameScene extends Phaser.Scene {
     this.highlightGraphics = this.add.graphics();
     this.highlightGraphics.setDepth(10);
 
-    // --- Camera ---
-    this.camera = this.cameras.main;
-    this.camera.roundPixels = true;
-    this.camera.setBounds(0, 0, this.worldPixelWidth, this.worldPixelHeight);
-    this.computeZoomBounds();
-    this.camera.setZoom(Phaser.Math.Clamp(1, this.minZoom, this.maxZoom));
-    this.camera.centerOn(this.player.x, this.player.y);
-  }
-
-  // Grid removed; ground now represented by tilemap
-
-  private computeZoomBounds() {
-    // Enforce: user must never zoom out beyond seeing all 100 horizontal tiles.
-    // Visible horizontal tiles = camera.displayWidth / TILE_SIZE = (cam.width / zoom) / TILE_SIZE
-    // To cap at 100 tiles: zoom >= cam.width / (100 * TILE_SIZE)
-    const cam = this.camera;
-    const fitWorldWidthZoom = cam.width / this.worldPixelWidth; // zoom at which full 100 tiles exactly fit horizontally
-    // Minimum allowed zoom is exactly the zoom that fits world width. (Not using height so we never show space beyond right edge.)
-    this.minZoom = fitWorldWidthZoom;
-    // Max zoom: only 8 tiles visible horizontally (or at least 1.0 if screen narrower than 8 tiles). This keeps tiles large.
-    const eightTilesZoom = cam.width / (8 * TILE_SIZE);
-    this.maxZoom = Math.max(1, eightTilesZoom);
-    if (this.maxZoom < this.minZoom) this.maxZoom = this.minZoom + 0.0001; // ensure a tiny range if device is very small
-  }
-
-  private setZoom(z: number) {
-    const clamped = Phaser.Math.Clamp(z, this.minZoom, this.maxZoom);
-    // Get player center before zoom
-    const playerX = this.player.x;
-    const playerY = this.player.y;
-    // Set zoom
-    this.camera.setZoom(clamped);
-    // Center camera on player
-    this.camera.centerOn(playerX, playerY);
-    this.clampCamera();
-  }
-
-  private clampCamera() {
-    // Ensure camera view stays within world bounds after zooming
-    const cam = this.camera;
-    const viewW = cam.width / cam.zoom;
-    const viewH = cam.height / cam.zoom;
-    const maxScrollX = this.worldPixelWidth - viewW;
-    const maxScrollY = this.worldPixelHeight - viewH;
-    cam.scrollX = Phaser.Math.Clamp(cam.scrollX, 0, Math.max(0, maxScrollX));
-    cam.scrollY = Phaser.Math.Clamp(cam.scrollY, 0, Math.max(0, maxScrollY));
+    this.camera = new Camera({ shell: this });
   }
 
   update(time: number, delta: number) {
@@ -340,7 +261,7 @@ export class GameScene extends Phaser.Scene {
       }
       // Camera always centers on player after movement
       this.camera.centerOn(this.player.x, this.player.y);
-      this.clampCamera();
+      this.camera.clamp();
     }
   }
 
