@@ -1,5 +1,12 @@
 import { assets } from "./assets";
 
+const PlayerAnimations = Object.values(
+  assets.amelie.animations
+) as ReadonlyArray<
+  (typeof assets.amelie.animations)[keyof typeof assets.amelie.animations]
+>;
+export type PlayerAnimation = (typeof PlayerAnimations)[number];
+
 const Block = Object.values(assets.blocks.sprites) as ReadonlyArray<
   (typeof assets.blocks.sprites)[keyof typeof assets.blocks.sprites]
 >;

@@ -20,7 +20,6 @@ type Movement = "walk" | "idle";
 // Block collection time in milliseconds
 const COLLECT_BLOCK_TIME_MS = 1000;
 const INTERACT_RANGE = 2; // tiles
-const MOVE_SPEED = 248; // pixels per second
 // ...other constants can be added here...
 
 // ===================
@@ -42,7 +41,6 @@ export class GameScene extends Phaser.Scene {
   private highlightTile: { x: number; y: number } | null = null;
   private alwaysHighlightTiles: { x: number; y: number }[] = [];
   private INTERACT_RANGE = INTERACT_RANGE; // tiles
-  private moveSpeed = MOVE_SPEED; // pixels per second (from PoC)
   private lastDirection: Direction = "down";
   private highlightGraphics!: Phaser.GameObjects.Graphics;
   private selectedTool: Option = "move";
@@ -73,6 +71,10 @@ export class GameScene extends Phaser.Scene {
     return this.player.getPosition();
   }
 
+  isWalkable(worldX: number, worldY: number): boolean {
+    return this.world.isWalkable(worldX, worldY);
+  }
+
   // ===================
   // === HELPERS: Direction, Animation, Tile, Range ===
   // ===================
@@ -85,33 +87,6 @@ export class GameScene extends Phaser.Scene {
     return this.lastDirection;
   }
 
-  private getAnim(type: Movement, dir: Direction) {
-    const anims = assets.amelie.animations;
-    if (type === "walk") {
-      switch (dir) {
-        case "right":
-          return anims.AmelieWalkRight;
-        case "left":
-          return anims.AmelieWalkLeft;
-        case "up":
-          return anims.AmelieWalkUp;
-        case "down":
-          return anims.AmelieWalkDown;
-      }
-    } else {
-      switch (dir) {
-        case "right":
-          return anims.AmelieIdleRight;
-        case "left":
-          return anims.AmelieIdleLeft;
-        case "up":
-          return anims.AmelieIdleUp;
-        case "down":
-          return anims.AmelieIdleDown;
-      }
-    }
-  }
-
   private getTileAt(tx: number, ty: number) {
     return this.world.getTileAt(tx, ty);
   }
@@ -120,10 +95,6 @@ export class GameScene extends Phaser.Scene {
     const { x: px, y: py } = this.player.getTile();
     const dist = Math.abs(tx - px) + Math.abs(ty - py);
     return dist <= this.INTERACT_RANGE;
-  }
-
-  private isWalkable(worldX: number, worldY: number): boolean {
-    return this.world.isWalkable(worldX, worldY);
   }
 
   create() {
@@ -184,44 +155,7 @@ export class GameScene extends Phaser.Scene {
 
     // Player movement logic
     if (this.target) {
-      const [playerX, playerY] = this.player.getPosition();
-      const dx = this.target.x - playerX;
-      const dy = this.target.y - playerY;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist > 2) {
-        // Move towards target at moveSpeed (pixels/sec)
-        const move = (this.moveSpeed * delta) / 1000;
-        const nx = playerX + (dx / dist) * Math.min(move, dist);
-        const ny = playerY + (dy / dist) * Math.min(move, dist);
-        // Only move if the next position is walkable
-        if (this.isWalkable(nx, ny)) {
-          // Determine direction for animation
-          let dir: Direction = this.lastDirection;
-          if (Math.abs(dx) > Math.abs(dy)) {
-            dir = dx > 0 ? "right" : "left";
-          } else if (Math.abs(dy) > 0) {
-            dir = dy > 0 ? "down" : "up";
-          }
-          this.lastDirection = dir;
-          // Play walk animation
-          this.player.getSprite().play(this.getAnim("walk", dir), true);
-          this.player.getSprite().x = nx;
-          this.player.getSprite().y = ny;
-        } else {
-          // If not walkable, stop movement and play idle
-          this.player
-            .getSprite()
-            .play(this.getAnim("idle", this.lastDirection), true);
-          this.target = null;
-        }
-      } else {
-        // Arrived at target
-        this.player.getSprite().x = this.target.x;
-        this.player.getSprite().y = this.target.y;
-        // Play idle animation facing last direction
-        this.player
-          .getSprite()
-          .play(this.getAnim("idle", this.lastDirection), true);
+      if (!this.player.moveTo(this.target.x, this.target.y, delta)) {
         this.target = null;
       }
       // Camera always centers on player after movement
@@ -315,7 +249,7 @@ export class GameScene extends Phaser.Scene {
     const dy = ty - py;
     const dir = this.getDirection(dx, dy);
     this.lastDirection = dir;
-    this.player.getSprite().play(this.getAnim("idle", dir), true);
+    this.player.playAnim("idle", dir, true);
     if (!this.world) return;
     if (this.selectedTool === "collect") return;
     // Only place if player has at least one of the selected block
@@ -463,7 +397,7 @@ export class GameScene extends Phaser.Scene {
       dir = dy > 0 ? "down" : "up";
     }
     this.lastDirection = dir;
-    this.player.getSprite().play(this.getAnim("idle", dir), true);
+    this.player.playAnim("idle", dir, true);
     // Start collection state (now 1 second)
     this.collectingBlock = {
       x: tx,
