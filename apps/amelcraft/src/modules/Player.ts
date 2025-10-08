@@ -94,6 +94,11 @@ export class Player {
     }
   }
 
+  stop() {
+    this.setTarget(null);
+    this.playAnim("idle", this.lastDirection, true);
+  }
+
   moveTo(x: number, y: number, timeSinceLastMove: number): boolean {
     const dx = x - this.sprite.x;
     const dy = y - this.sprite.y;

@@ -216,13 +216,12 @@ export class HudRoot extends HTMLElement {
 
   render() {
     if (!this.shadowRoot) return;
-
     this.shadowRoot.innerHTML = "";
     this.injectStyles();
 
-    const hud = document.createElement("div");
-    hud.className = "hud";
-    this.shadowRoot.appendChild(hud);
+    // Make the custom element the container by applying the hud class to the host
+    // and append children directly into the shadow root.
+    this.className = "hud";
 
     const dropdown = document.createElement("hud-dropdown") as HTMLElement &
       HudDropdown;
@@ -232,11 +231,11 @@ export class HudRoot extends HTMLElement {
       onSelect: this.handleSelect,
       open: this.dropdownOpen,
     };
-    hud.appendChild(dropdown);
+    this.shadowRoot.appendChild(dropdown);
 
     const controls = document.createElement("div");
     controls.className = "hud-controls";
-    hud.appendChild(controls);
+    this.shadowRoot.appendChild(controls);
 
     const moveOption = document.createElement("hud-option");
     moveOption.className = "with-frame with-shadow";
@@ -297,19 +296,21 @@ customElements.define("amelcraft-hud", HudRoot);
 export { HudRoot as HUD };
 
 const rootStyle = `
-  .hud {
+  :host(.hud) {
     position: fixed;
     bottom: 0;
-    left: 0;
-    right: 0;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 9999;
     padding: 1em;
-    display: flex;
+    display: inline-flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 1em;
     user-select: none;
+    max-width: calc(100% - 2em);
+    box-sizing: border-box;
   }
   .hud-dropdown-list {
     width: auto;
@@ -386,7 +387,7 @@ const rootStyle = `
     border-radius: 0.7em;
     padding: 0.7em;
   }
-  .whith-shadow {
+  .with-shadow {
     box-shadow: 0 2px 12px #0008;
   }
 `;

@@ -7,11 +7,12 @@ import { TILE_SIZE } from "../main";
 import { World } from "../modules/World";
 import { Inventory } from "../modules/Inventory";
 import { HUDManager } from "../modules/HUDManager";
-import { Camera } from "../modules/Camera";
+import { Camera } from "../modules/Camera2";
 import { Player } from "../modules/Player";
 import { MoveMode } from "../modes/Move";
 import { CollectMode } from "../modes/Collect";
 import { PlaceMode } from "../modes/Place";
+import { Pointer } from "../modules/Pointer";
 
 // ===================
 // === GAME SCENE  ===
@@ -25,6 +26,7 @@ export class GameScene extends Phaser.Scene {
   private placeMode: PlaceMode;
   private activeMode: CollectMode | MoveMode | PlaceMode;
 
+  private pointer!: Pointer;
   private world!: World;
   private inventory!: Inventory;
   private hud!: HUDManager;
@@ -56,6 +58,10 @@ export class GameScene extends Phaser.Scene {
     return this.player;
   }
 
+  getPointer() {
+    return this.pointer;
+  }
+
   getWorld() {
     return this.world;
   }
@@ -72,6 +78,7 @@ export class GameScene extends Phaser.Scene {
     // Make Phaser game instance globally available for HUD block rendering
     window.game = this.game;
 
+    this.pointer = new Pointer(this);
     this.world = new World(this);
     this.inventory = new Inventory();
     this.hud = new HUDManager({
@@ -92,6 +99,8 @@ export class GameScene extends Phaser.Scene {
       start: playerStart,
     });
     this.camera = new Camera({ shell: this });
+    // Ensure initial view is centered on the player
+    this.camera.recenter();
     // Ensure HUD selection switches modes via setSelectedTool and initialize mode
     this.setSelectedTool(this.selectedTool);
 
@@ -107,12 +116,8 @@ export class GameScene extends Phaser.Scene {
 
     // Player owns its movement target and handles movement; drive player update
     this.player.update(time, delta);
-    // Camera centering in move mode
-    if (this.player.isMoving()) {
-      if (this.activeMode.modeName === "move") {
-        this.camera.recenter();
-      }
-    }
+    // Camera auto-pan: let Camera decide when to pan based on player proximity to viewport edges
+    this.camera.update(time, delta);
   }
 
   destroy() {
@@ -126,15 +131,22 @@ export class GameScene extends Phaser.Scene {
   private setupUnifiedPointerControls() {
     // Unified pointer/touch event handling
     this.input.on("pointermove", (p: Phaser.Input.Pointer) => {
+      // during pinch gestures, don't forward pointer events to modes
+      if (this.pointer.isPinching()) return;
+
       // forward to active mode
       this.activeMode.onPointerMove(p);
     });
 
     this.input.on("pointerdown", (p: Phaser.Input.Pointer) => {
+      if (this.pointer.isPinching()) return;
+
       this.activeMode.onPointerDown(p);
     });
 
     this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
+      if (this.pointer.isPinching()) return;
+
       this.activeMode.onPointerUp(p);
     });
   }
