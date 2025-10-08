@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { GameScene } from "../scenes/GameScene";
 import { TILE_SIZE } from "../main";
-import { toOption, isMode } from "../types";
+import { toOption, isMode, isBlock, Block, Direction } from "../types";
 
 export class PlaceMode {
   modeName = "place" as const;
@@ -27,20 +27,23 @@ export class PlaceMode {
   update(_time: number, _delta: number) {
     if (!this.gfx) return;
     this.gfx.clear();
-    const tile = this.scene.getHighlightTile();
+    const tile = this.scene.getWorld().getHighlightTile();
     if (!tile) return;
     const { x, y } = tile;
-    const inRange = this.scene.isTileInteractable(x, y);
     const sx = x * TILE_SIZE;
     const sy = y * TILE_SIZE;
-    this.gfx.lineStyle(2, inRange ? 0x00ff00 : 0xff0000, 0.7);
-    this.gfx.fillStyle(inRange ? 0x00ff00 : 0xff0000, 0.12);
+    this.gfx.lineStyle(2, 0x00ff00, 0.7);
+    this.gfx.fillStyle(0x00ff00, 0.12);
     this.gfx.strokeRect(sx, sy, TILE_SIZE, TILE_SIZE);
     this.gfx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
   }
 
-  onPointerMove(_p: Phaser.Input.Pointer) {
-    // nothing special here — scene updates highlight
+  onPointerMove(p: Phaser.Input.Pointer) {
+    const tx = Math.floor(p.worldX / TILE_SIZE);
+    const ty = Math.floor(p.worldY / TILE_SIZE);
+
+    // always update highlightTile for convenience
+    this.scene.getWorld().setHighlightTile({ x: tx, y: ty });
   }
 
   onPointerDown(p: Phaser.Input.Pointer) {
@@ -61,42 +64,43 @@ export class PlaceMode {
     if (!tile) return;
 
     const inventory = this.scene.getInventory();
-    if (!inventory.has(selected as any)) return;
+    if (isBlock(selected) && !inventory.has(selected)) return;
 
     // If player stands on the same tile, require the player to move next to it first
     const pTile = this.scene.getPlayer().getTile();
     if (pTile.x === tx && pTile.y === ty) {
-      this.scene.movePlayerAdjacentTo(tx, ty, () => {
-        this.placeAt(tx, ty, selected as any, world, inventory);
+      this.scene.getPlayer().movePlayerAdjacentTo(tx, ty, () => {
+        if (isBlock(selected)) {
+          this.placeAt(tx, ty, selected);
+        }
       });
       return;
     }
 
     // If already adjacent and not standing on the tile -> place immediately
-    if (this.scene.isTileInteractable(tx, ty)) {
-      this.placeAt(tx, ty, selected as any, world, inventory);
+    if (
+      isBlock(selected) &&
+      this.scene.getPlayer().isTileInteractable(tx, ty)
+    ) {
+      this.placeAt(tx, ty, selected);
       return;
     }
 
     // Not adjacent: move player adjacent to the tile, then place on arrival
-    this.scene.movePlayerAdjacentTo(tx, ty, () => {
-      this.placeAt(tx, ty, selected as any, world, inventory);
+    this.scene.getPlayer().movePlayerAdjacentTo(tx, ty, () => {
+      if (isBlock(selected)) {
+        this.placeAt(tx, ty, selected);
+      }
     });
   }
 
   onPointerUp(_p: Phaser.Input.Pointer) {}
 
-  private placeAt(
-    tx: number,
-    ty: number,
-    selected: any,
-    world: any,
-    inventory: any
-  ) {
+  private placeAt(tx: number, ty: number, selected: Block) {
     // Ensure the player stops moving — clear any scene target so
     // GameScene.update won't continue to call moveTo and play walk
     // animations which would override the facing set below.
-    this.scene.setTarget(null);
+    this.scene.getPlayer().setTarget(null);
 
     // Face the tile from player's current position
     const [playerX, playerY] = this.scene.getPlayer().getPosition();
@@ -104,14 +108,14 @@ export class PlaceMode {
     const py = Math.floor(playerY / TILE_SIZE);
     const dx = tx - px;
     const dy = ty - py;
-    let dir: any = "down";
+    let dir: Direction = "down";
     if (dx !== 0) dir = dx > 0 ? "right" : "left";
     else if (dy !== 0) dir = dy > 0 ? "down" : "up";
     this.scene.getPlayer().playAnim("idle", dir, true);
 
     // perform place
-    world.putTileAt(selected, tx, ty);
-    const remaining = inventory.remove(selected);
+    this.scene.getWorld().putTileAt(selected, tx, ty);
+    const remaining = this.scene.getInventory().remove(selected);
     if (remaining !== false) {
       if (remaining === 0) this.scene.setSelectedTool("move");
       this.scene

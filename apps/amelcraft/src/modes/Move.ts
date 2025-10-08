@@ -1,6 +1,5 @@
 import Phaser from "phaser";
 import { GameScene } from "../scenes/GameScene";
-import { TILE_SIZE } from "../main";
 
 export class MoveMode {
   modeName = "move" as const;
@@ -27,13 +26,13 @@ export class MoveMode {
     if (p.isDown) {
       // while dragging, move player toward pointer
       this.dragging = true;
-      this.scene.setTarget({ x: p.worldX, y: p.worldY });
+      this.scene.getPlayer().setTarget({ x: p.worldX, y: p.worldY });
     }
   }
 
   onPointerDown(p: Phaser.Input.Pointer) {
     // start moving to pointer immediately
-    this.scene.setTarget({ x: p.worldX, y: p.worldY });
+    this.scene.getPlayer().setTarget({ x: p.worldX, y: p.worldY });
   }
 
   onPointerUp(p: Phaser.Input.Pointer) {

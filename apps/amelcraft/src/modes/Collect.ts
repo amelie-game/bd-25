@@ -49,15 +49,14 @@ export class CollectMode {
     // draw highlights/progress
     if (!this.gfx) return;
     this.gfx.clear();
-    const tile = this.scene.getHighlightTile();
+    const tile = this.scene.getWorld().getHighlightTile();
     if (tile) {
       const { x, y } = tile;
       // Use 8-connected adjacency to determine immediate collectability: tiles with Chebyshev distance <= 1
-      const inRange = this.scene.isTileInteractable(x, y);
       const sx = x * TILE_SIZE;
       const sy = y * TILE_SIZE;
-      this.gfx.lineStyle(2, inRange ? 0x00ff00 : 0xff0000, 0.7);
-      this.gfx.fillStyle(inRange ? 0x00ff00 : 0xff0000, 0.12);
+      this.gfx.lineStyle(2, 0x00ff00, 0.7);
+      this.gfx.fillStyle(0x00ff00, 0.12);
       this.gfx.strokeRect(sx, sy, TILE_SIZE, TILE_SIZE);
       this.gfx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
 
@@ -93,6 +92,9 @@ export class CollectMode {
     const tx = Math.floor(p.worldX / TILE_SIZE);
     const ty = Math.floor(p.worldY / TILE_SIZE);
 
+    // always update highlightTile for convenience
+    this.scene.getWorld().setHighlightTile({ x: tx, y: ty });
+
     // If dragging to new tile while collecting: cancel current and start new if pointer still down
     if (this.collecting) {
       if (this.collecting.x !== tx || this.collecting.y !== ty) {
@@ -113,7 +115,7 @@ export class CollectMode {
   }
 
   onPointerUp(p: Phaser.Input.Pointer) {
-    // abort collection if any
+    // abort collection
     this.cancelCollection();
   }
 
@@ -126,7 +128,7 @@ export class CollectMode {
 
     // If player stands on the same tile, require the player to move next to it first
     if (pTile.x === tx && pTile.y === ty) {
-      const moved = this.scene.movePlayerAdjacentTo(tx, ty, () => {
+      const moved = this.scene.getPlayer().movePlayerAdjacentTo(tx, ty, () => {
         // start collection once arrived; facing will be set by startCollection
         this.startCollection(tx, ty);
       });
@@ -135,12 +137,12 @@ export class CollectMode {
     }
 
     // Determine adjacency (use the shared helper). If target is adjacent/collectable, start immediately.
-    if (this.scene.isTileInteractable(tx, ty)) {
+    if (this.scene.getPlayer().isTileInteractable(tx, ty)) {
       this.startCollection(tx, ty);
       return;
     }
 
-    const moved = this.scene.movePlayerAdjacentTo(tx, ty, () => {
+    const moved = this.scene.getPlayer().movePlayerAdjacentTo(tx, ty, () => {
       this.startCollection(tx, ty);
     });
   }
@@ -152,7 +154,7 @@ export class CollectMode {
     // Ensure the player stops moving — clear any scene target so
     // GameScene.update won't continue to call moveTo and play walk
     // animations which would override the facing set below.
-    this.scene.setTarget(null);
+    this.scene.getPlayer().setTarget(null);
 
     // Make player face the block being collected
     const [playerX, playerY] = this.scene.getPlayer().getPosition();

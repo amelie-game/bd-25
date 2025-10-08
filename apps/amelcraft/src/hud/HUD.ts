@@ -1,4 +1,4 @@
-import { Block, Option, toBlock, toOption } from "../types";
+import { Block, isBlock, Option, toOption } from "../types";
 
 // --- <hud-badge> ---
 class HudBadge extends HTMLElement {
@@ -47,12 +47,11 @@ class HudOption extends HTMLElement {
           canvas.style.display = "block";
           canvas.style.boxSizing = "border-box";
           const ctx = canvas.getContext("2d");
-          const w: any = window;
-          if (ctx && w["game"] && w["game"].textures) {
-            const tex = w["game"].textures.get("blocks");
+          if (ctx && window.game?.textures) {
+            const tex = window.game.textures.get("blocks");
             if (tex && type !== null) {
               const frame = tex.get(option);
-              if (frame) {
+              if (frame && HudOption.isDrawable(frame.source.image)) {
                 const source = frame.source.image;
                 ctx.drawImage(
                   source,
@@ -81,6 +80,11 @@ class HudOption extends HTMLElement {
     }
     return null;
   }
+
+  static isDrawable(img: unknown): img is HTMLImageElement | HTMLCanvasElement {
+    return img instanceof HTMLImageElement || img instanceof HTMLCanvasElement;
+  }
+
   static get observedAttributes() {
     return ["selected", "type", "count"];
   }
@@ -220,10 +224,11 @@ export class HudRoot extends HTMLElement {
     hud.className = "hud";
     this.shadowRoot.appendChild(hud);
 
-    const dropdown = document.createElement("hud-dropdown") as any;
-    (dropdown as any).data = {
+    const dropdown = document.createElement("hud-dropdown") as HTMLElement &
+      HudDropdown;
+    dropdown.data = {
       options: this.options,
-      selected: this.selected,
+      selected: isBlock(this.selected) ? this.selected : null,
       onSelect: this.handleSelect,
       open: this.dropdownOpen,
     };
@@ -260,9 +265,9 @@ export class HudRoot extends HTMLElement {
     }
     blockOption.onclick = () => {
       this.dropdownOpen = !this.dropdownOpen;
-      (dropdown as any).data = {
+      dropdown.data = {
         options: this.options,
-        selected: this.selected,
+        selected: isBlock(this.selected) ? this.selected : null,
         onSelect: this.handleSelect,
         open: this.dropdownOpen,
       };

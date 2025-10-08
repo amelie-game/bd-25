@@ -12,7 +12,7 @@ const Block = Object.values(assets.blocks.sprites) as ReadonlyArray<
 >;
 export type Block = (typeof Block)[number];
 
-function isBlock(value: unknown): value is Block {
+export function isBlock(value: unknown): value is Block {
   return typeof value === "number" && Block.includes(value as Block);
 }
 

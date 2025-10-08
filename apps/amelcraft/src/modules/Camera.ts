@@ -26,8 +26,8 @@ export class Camera {
     this.shell.input.on(
       "wheel",
       (
-        pointer: any,
-        gameObjects: any,
+        pointer: Phaser.Input.Pointer,
+        gameObjects: Phaser.GameObjects.GameObject[],
         deltaX: number,
         deltaY: number,
         deltaZ: number
@@ -38,10 +38,16 @@ export class Camera {
     );
 
     // Pinch zoom for touch devices
-    this.shell.input.on("pointermove", (pointer: any) => {
-      if (pointer.pointers && pointer.pointers.length === 2) {
-        const [p1, p2] = pointer.pointers;
-        const dist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+    this.shell.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
+      const event = pointer.event as TouchEvent | PointerEvent | undefined;
+      if (event && "touches" in event && event.touches.length === 2) {
+        const [p1, p2] = event.touches;
+        const dist = Phaser.Math.Distance.Between(
+          p1.clientX,
+          p1.clientY,
+          p2.clientX,
+          p2.clientY
+        );
         if (this.lastPinchDist !== null) {
           const diff = dist - this.lastPinchDist;
           if (Math.abs(diff) > 2) {

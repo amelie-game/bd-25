@@ -11,6 +11,7 @@ export class World {
     World.COLUMNS * TILE_SIZE,
     World.ROWS * TILE_SIZE,
   ];
+  private highlightTile: { x: number; y: number } | null = null;
 
   constructor(scene: Phaser.Scene) {
     // --- Tilemap and Tileset ---
@@ -45,6 +46,14 @@ export class World {
     ); // start as water
     this.generateIsland();
     this.groundLayer.setDepth(0);
+  }
+
+  getHighlightTile() {
+    return this.highlightTile;
+  }
+
+  setHighlightTile(tile: { x: number; y: number } | null) {
+    this.highlightTile = tile;
   }
 
   isWalkable(x: number, y: number): boolean {
