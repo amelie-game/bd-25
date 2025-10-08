@@ -52,20 +52,14 @@ export class CollectMode {
     const tile = this.scene.getWorld().getHighlightTile();
     if (tile) {
       const { x, y } = tile;
-      // Use 8-connected adjacency to determine immediate collectability: tiles with Chebyshev distance <= 1
-      const sx = x * TILE_SIZE;
-      const sy = y * TILE_SIZE;
-      this.gfx.lineStyle(2, 0x00ff00, 0.7);
-      this.gfx.fillStyle(0x00ff00, 0.12);
-      this.gfx.strokeRect(sx, sy, TILE_SIZE, TILE_SIZE);
-      this.gfx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-
       // Draw progress bar if collecting this tile
       if (
         this.collecting &&
         this.collecting.x === x &&
         this.collecting.y === y
       ) {
+        const sx = x * TILE_SIZE;
+        const sy = y * TILE_SIZE;
         const barWidth = TILE_SIZE * 0.8;
         const barHeight = 6;
         const barX = sx + TILE_SIZE * 0.1;
@@ -92,8 +86,10 @@ export class CollectMode {
     const tx = Math.floor(p.worldX / TILE_SIZE);
     const ty = Math.floor(p.worldY / TILE_SIZE);
 
-    // always update highlightTile for convenience
-    this.scene.getWorld().setHighlightTile({ x: tx, y: ty });
+    // Update highlight tile using a shared World helper (avoids duplicated math).
+    this.scene
+      .getWorld()
+      .setHighlightTile({ worldX: p.worldX, worldY: p.worldY });
 
     // If dragging to new tile while collecting: cancel current and start new if pointer still down
     if (this.collecting) {

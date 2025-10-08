@@ -11,7 +11,8 @@ export class MoveMode {
   }
 
   enter() {
-    // Nothing special for now
+    this.scene.getCamera().recenter();
+    this.scene.getWorld().setHighlightTile(null);
   }
 
   exit() {

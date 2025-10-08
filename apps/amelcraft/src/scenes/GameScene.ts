@@ -100,6 +100,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
+    this.world.update(time, delta);
+
     // Delegate update to active mode (if any)
     this.activeMode.update(time, delta);
 
@@ -111,6 +113,11 @@ export class GameScene extends Phaser.Scene {
         this.camera.recenter();
       }
     }
+  }
+
+  destroy() {
+    this.world.destroy();
+    this.hud.destroy();
   }
 
   // ===================

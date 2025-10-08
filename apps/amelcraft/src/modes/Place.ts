@@ -6,44 +6,22 @@ import { toOption, isMode, isBlock, Block, Direction } from "../types";
 export class PlaceMode {
   modeName = "place" as const;
   private scene: GameScene;
-  private gfx: Phaser.GameObjects.Graphics | null = null;
 
   constructor(scene: GameScene) {
     this.scene = scene;
   }
 
-  enter() {
-    this.gfx = this.scene.add.graphics();
-    this.gfx.setDepth(10);
-  }
+  enter() {}
 
-  exit() {
-    if (this.gfx) {
-      this.gfx.destroy();
-      this.gfx = null;
-    }
-  }
+  exit() {}
 
-  update(_time: number, _delta: number) {
-    if (!this.gfx) return;
-    this.gfx.clear();
-    const tile = this.scene.getWorld().getHighlightTile();
-    if (!tile) return;
-    const { x, y } = tile;
-    const sx = x * TILE_SIZE;
-    const sy = y * TILE_SIZE;
-    this.gfx.lineStyle(2, 0x00ff00, 0.7);
-    this.gfx.fillStyle(0x00ff00, 0.12);
-    this.gfx.strokeRect(sx, sy, TILE_SIZE, TILE_SIZE);
-    this.gfx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
-  }
+  update(_time: number, _delta: number) {}
 
   onPointerMove(p: Phaser.Input.Pointer) {
-    const tx = Math.floor(p.worldX / TILE_SIZE);
-    const ty = Math.floor(p.worldY / TILE_SIZE);
-
-    // always update highlightTile for convenience
-    this.scene.getWorld().setHighlightTile({ x: tx, y: ty });
+    // Update highlight tile using the shared World helper
+    this.scene
+      .getWorld()
+      .setHighlightTile({ worldX: p.worldX, worldY: p.worldY });
   }
 
   onPointerDown(p: Phaser.Input.Pointer) {

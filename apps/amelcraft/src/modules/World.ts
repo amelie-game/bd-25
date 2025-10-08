@@ -1,21 +1,26 @@
 import Phaser from "phaser";
 import { assets } from "../assets";
 import { TILE_SIZE } from "../main";
+import { GameScene } from "../scenes/GameScene";
 
 export class World {
   static COLUMNS = 100;
   static ROWS = 100;
 
+  private scene: GameScene;
   private groundLayer!: Phaser.Tilemaps.TilemapLayer;
   private dimensions: [width: number, height: number] = [
     World.COLUMNS * TILE_SIZE,
     World.ROWS * TILE_SIZE,
   ];
   private highlightTile: { x: number; y: number } | null = null;
+  private gfx: Phaser.GameObjects.Graphics | null = null;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: GameScene) {
+    this.scene = scene;
+
     // --- Tilemap and Tileset ---
-    const map = scene.make.tilemap({
+    const map = this.scene.make.tilemap({
       tileWidth: TILE_SIZE,
       tileHeight: TILE_SIZE,
       width: World.COLUMNS,
@@ -25,17 +30,20 @@ export class World {
       console.warn("Tilemap creation failed");
       return;
     }
+
     const tileset = map.addTilesetImage(assets.blocks.key);
     if (!tileset) {
       console.warn("Tileset creation failed for key:", assets.blocks.key);
       return;
     }
+
     const layer = map.createBlankLayer("ground", tileset);
     if (!layer) {
       console.warn("Tilemap layer creation failed");
       return;
     }
-    this.groundLayer = layer as Phaser.Tilemaps.TilemapLayer;
+
+    this.groundLayer = layer;
     // Generate island terrain (grass & water)
     this.groundLayer.fill(
       assets.blocks.sprites.Water,
@@ -44,16 +52,58 @@ export class World {
       World.COLUMNS,
       World.ROWS
     ); // start as water
-    this.generateIsland();
     this.groundLayer.setDepth(0);
+
+    this.gfx = this.scene.add.graphics();
+    this.gfx.setDepth(10);
+
+    this.generateIsland();
+  }
+
+  destroy() {
+    if (this.gfx) {
+      this.gfx.destroy();
+      this.gfx = null;
+    }
+  }
+
+  update(_time: number, _delta: number) {
+    if (!this.gfx) return;
+    this.gfx.clear();
+
+    const tile = this.highlightTile;
+    if (!tile) return;
+
+    const { x, y } = tile;
+    const sx = x * TILE_SIZE;
+    const sy = y * TILE_SIZE;
+    this.gfx.lineStyle(2, 0x00ff00, 0.7);
+    this.gfx.fillStyle(0x00ff00, 0.12);
+    this.gfx.strokeRect(sx, sy, TILE_SIZE, TILE_SIZE);
+    this.gfx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
   }
 
   getHighlightTile() {
     return this.highlightTile;
   }
 
-  setHighlightTile(tile: { x: number; y: number } | null) {
-    this.highlightTile = tile;
+  setHighlightTile(tile: { worldX: number; worldY: number } | null) {
+    if (!tile) {
+      this.highlightTile = null;
+      return;
+    }
+
+    // Convert to tile coords. We use the world tile dimensions as a heuristic:
+    // tile indices should be within [0, COLUMNS-1] and [0, ROWS-1].
+    // If values are outside that range we assume they're pixel coordinates.
+    let tx = Math.floor(tile.worldX / TILE_SIZE);
+    let ty = Math.floor(tile.worldY / TILE_SIZE);
+
+    // Clamp to valid tile range so drawing can't go off-world.
+    tx = Phaser.Math.Clamp(tx, 0, World.COLUMNS - 1);
+    ty = Phaser.Math.Clamp(ty, 0, World.ROWS - 1);
+
+    this.highlightTile = { x: tx, y: ty };
   }
 
   isWalkable(x: number, y: number): boolean {
@@ -76,6 +126,11 @@ export class World {
   putTileAt(tile: number, tx: number, ty: number) {
     this.groundLayer.putTileAt(tile, tx, ty);
   }
+
+  getDimensions(): [width: number, height: number] {
+    return this.dimensions;
+  }
+
   generateIsland() {
     {
       const GRASS = assets.blocks.sprites.Grass; // tileset index for grass
@@ -243,9 +298,5 @@ export class World {
         }
       }
     }
-  }
-
-  getDimensions(): [width: number, height: number] {
-    return this.dimensions;
   }
 }
