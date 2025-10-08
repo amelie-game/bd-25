@@ -7,7 +7,7 @@ export class World {
   static COLUMNS = 100;
   static ROWS = 100;
 
-  private scene: GameScene;
+  private shell: GameScene;
   private groundLayer!: Phaser.Tilemaps.TilemapLayer;
   private dimensions: [width: number, height: number] = [
     World.COLUMNS * TILE_SIZE,
@@ -16,11 +16,11 @@ export class World {
   private highlightTile: { x: number; y: number } | null = null;
   private gfx: Phaser.GameObjects.Graphics | null = null;
 
-  constructor(scene: GameScene) {
-    this.scene = scene;
+  constructor(shell: GameScene) {
+    this.shell = shell;
 
     // --- Tilemap and Tileset ---
-    const map = this.scene.make.tilemap({
+    const map = this.shell.make.tilemap({
       tileWidth: TILE_SIZE,
       tileHeight: TILE_SIZE,
       width: World.COLUMNS,
@@ -54,7 +54,7 @@ export class World {
     ); // start as water
     this.groundLayer.setDepth(0);
 
-    this.gfx = this.scene.add.graphics();
+    this.gfx = this.shell.add.graphics();
     this.gfx.setDepth(10);
 
     this.generateIsland();

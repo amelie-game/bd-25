@@ -7,7 +7,7 @@ import { Direction, toBlock } from "../types";
 
 export class CollectMode {
   modeName = "collect" as const;
-  private scene: GameScene;
+  private shell: GameScene;
   private gfx: Phaser.GameObjects.Graphics | null = null;
   private collecting: {
     x: number;
@@ -18,12 +18,12 @@ export class CollectMode {
   private collectionProgress = 0;
   private collectTime = 1000; // ms
 
-  constructor(scene: GameScene) {
-    this.scene = scene;
+  constructor(shell: GameScene) {
+    this.shell = shell;
   }
 
   enter() {
-    this.gfx = this.scene.add.graphics();
+    this.gfx = this.shell.add.graphics();
     this.gfx.setDepth(10);
   }
 
@@ -37,7 +37,7 @@ export class CollectMode {
 
   update(time: number, delta: number) {
     if (this.collecting) {
-      const elapsed = this.scene.time.now - this.collecting.startTime;
+      const elapsed = this.shell.time.now - this.collecting.startTime;
       this.collectionProgress = Phaser.Math.Clamp(
         elapsed / this.collectTime,
         0,
@@ -49,7 +49,7 @@ export class CollectMode {
     // draw highlights/progress
     if (!this.gfx) return;
     this.gfx.clear();
-    const tile = this.scene.getWorld().getHighlightTile();
+    const tile = this.shell.getWorld().getHighlightTile();
     if (tile) {
       const { x, y } = tile;
       // Draw progress bar if collecting this tile
@@ -87,7 +87,7 @@ export class CollectMode {
     const ty = Math.floor(p.worldY / TILE_SIZE);
 
     // Update highlight tile using a shared World helper (avoids duplicated math).
-    this.scene
+    this.shell
       .getWorld()
       .setHighlightTile({ worldX: p.worldX, worldY: p.worldY });
 
@@ -116,15 +116,15 @@ export class CollectMode {
   }
 
   private tryStartCollection(tx: number, ty: number) {
-    const world = this.scene.getWorld();
+    const world = this.shell.getWorld();
     const tile = world.getTileAt(tx, ty);
     if (!tile) return;
 
-    const pTile = this.scene.getPlayer().getTile();
+    const pTile = this.shell.getPlayer().getTile();
 
     // If player stands on the same tile, require the player to move next to it first
     if (pTile.x === tx && pTile.y === ty) {
-      const moved = this.scene.getPlayer().movePlayerAdjacentTo(tx, ty, () => {
+      const moved = this.shell.getPlayer().movePlayerAdjacentTo(tx, ty, () => {
         // start collection once arrived; facing will be set by startCollection
         this.startCollection(tx, ty);
       });
@@ -133,12 +133,12 @@ export class CollectMode {
     }
 
     // Determine adjacency (use the shared helper). If target is adjacent/collectable, start immediately.
-    if (this.scene.getPlayer().isTileInteractable(tx, ty)) {
+    if (this.shell.getPlayer().isTileInteractable(tx, ty)) {
       this.startCollection(tx, ty);
       return;
     }
 
-    const moved = this.scene.getPlayer().movePlayerAdjacentTo(tx, ty, () => {
+    const moved = this.shell.getPlayer().movePlayerAdjacentTo(tx, ty, () => {
       this.startCollection(tx, ty);
     });
   }
@@ -147,13 +147,13 @@ export class CollectMode {
     // Cancel existing
     this.cancelCollection();
 
-    // Ensure the player stops moving — clear any scene target so
+    // Ensure the player stops moving — clear any shell target so
     // GameScene.update won't continue to call moveTo and play walk
     // animations which would override the facing set below.
-    this.scene.getPlayer().setTarget(null);
+    this.shell.getPlayer().setTarget(null);
 
     // Make player face the block being collected
-    const [playerX, playerY] = this.scene.getPlayer().getPosition();
+    const [playerX, playerY] = this.shell.getPlayer().getPosition();
     const px = Math.floor(playerX / TILE_SIZE);
     const py = Math.floor(playerY / TILE_SIZE);
     const dx = tx - px;
@@ -161,15 +161,15 @@ export class CollectMode {
     let dir: Direction = "down";
     if (dx !== 0) dir = dx > 0 ? "right" : "left";
     else if (dy !== 0) dir = dy > 0 ? "down" : "up";
-    this.scene.getPlayer().playAnim("idle", dir, true);
+    this.shell.getPlayer().playAnim("idle", dir, true);
 
     this.collecting = {
       x: tx,
       y: ty,
-      startTime: this.scene.time.now,
-      timer: this.scene.time.delayedCall(this.collectTime, () => {
+      startTime: this.shell.time.now,
+      timer: this.shell.time.delayedCall(this.collectTime, () => {
         // verify pointer still down and at same tile
-        const p = this.scene.input.activePointer;
+        const p = this.shell.input.activePointer;
         const pointerTile = {
           x: Math.floor(p.worldX / TILE_SIZE),
           y: Math.floor(p.worldY / TILE_SIZE),
@@ -199,17 +199,17 @@ export class CollectMode {
     const GROUND = assets.blocks.sprites.Brown;
     const SNOW = assets.blocks.sprites.Snow;
     const SAND = assets.blocks.sprites.Yellow;
-    const world = this.scene.getWorld();
+    const world = this.shell.getWorld();
     const tile = world.getTileAt(tx, ty);
     if (!tile) return;
 
     // Try to add to inventory
-    if (this.scene.getInventory().add(toBlock(tile.index))) {
-      this.scene
+    if (this.shell.getInventory().add(toBlock(tile.index))) {
+      this.shell
         .getHud()
         .update(
-          this.scene.getInventory().getSlots(),
-          this.scene.getSelectedTool()
+          this.shell.getInventory().getSlots(),
+          this.shell.getSelectedTool()
         );
     }
 

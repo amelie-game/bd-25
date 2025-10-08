@@ -5,10 +5,10 @@ import { toOption, isMode, isBlock, Block, Direction } from "../types";
 
 export class PlaceMode {
   modeName = "place" as const;
-  private scene: GameScene;
+  private shell: GameScene;
 
-  constructor(scene: GameScene) {
-    this.scene = scene;
+  constructor(shell: GameScene) {
+    this.shell = shell;
   }
 
   enter() {}
@@ -19,7 +19,7 @@ export class PlaceMode {
 
   onPointerMove(p: Phaser.Input.Pointer) {
     // Update highlight tile using the shared World helper
-    this.scene
+    this.shell
       .getWorld()
       .setHighlightTile({ worldX: p.worldX, worldY: p.worldY });
   }
@@ -28,7 +28,7 @@ export class PlaceMode {
     const tx = Math.floor(p.worldX / TILE_SIZE);
     const ty = Math.floor(p.worldY / TILE_SIZE);
 
-    const selected = this.scene.getSelectedTool();
+    const selected = this.shell.getSelectedTool();
     // ensure it's a block option
     try {
       const opt = toOption(selected as unknown);
@@ -37,17 +37,17 @@ export class PlaceMode {
       return;
     }
 
-    const world = this.scene.getWorld();
+    const world = this.shell.getWorld();
     const tile = world.getTileAt(tx, ty);
     if (!tile) return;
 
-    const inventory = this.scene.getInventory();
+    const inventory = this.shell.getInventory();
     if (isBlock(selected) && !inventory.has(selected)) return;
 
     // If player stands on the same tile, require the player to move next to it first
-    const pTile = this.scene.getPlayer().getTile();
+    const pTile = this.shell.getPlayer().getTile();
     if (pTile.x === tx && pTile.y === ty) {
-      this.scene.getPlayer().movePlayerAdjacentTo(tx, ty, () => {
+      this.shell.getPlayer().movePlayerAdjacentTo(tx, ty, () => {
         if (isBlock(selected)) {
           this.placeAt(tx, ty, selected);
         }
@@ -58,14 +58,14 @@ export class PlaceMode {
     // If already adjacent and not standing on the tile -> place immediately
     if (
       isBlock(selected) &&
-      this.scene.getPlayer().isTileInteractable(tx, ty)
+      this.shell.getPlayer().isTileInteractable(tx, ty)
     ) {
       this.placeAt(tx, ty, selected);
       return;
     }
 
     // Not adjacent: move player adjacent to the tile, then place on arrival
-    this.scene.getPlayer().movePlayerAdjacentTo(tx, ty, () => {
+    this.shell.getPlayer().movePlayerAdjacentTo(tx, ty, () => {
       if (isBlock(selected)) {
         this.placeAt(tx, ty, selected);
       }
@@ -75,13 +75,13 @@ export class PlaceMode {
   onPointerUp(_p: Phaser.Input.Pointer) {}
 
   private placeAt(tx: number, ty: number, selected: Block) {
-    // Ensure the player stops moving — clear any scene target so
+    // Ensure the player stops moving — clear any shell target so
     // GameScene.update won't continue to call moveTo and play walk
     // animations which would override the facing set below.
-    this.scene.getPlayer().setTarget(null);
+    this.shell.getPlayer().setTarget(null);
 
     // Face the tile from player's current position
-    const [playerX, playerY] = this.scene.getPlayer().getPosition();
+    const [playerX, playerY] = this.shell.getPlayer().getPosition();
     const px = Math.floor(playerX / TILE_SIZE);
     const py = Math.floor(playerY / TILE_SIZE);
     const dx = tx - px;
@@ -89,18 +89,18 @@ export class PlaceMode {
     let dir: Direction = "down";
     if (dx !== 0) dir = dx > 0 ? "right" : "left";
     else if (dy !== 0) dir = dy > 0 ? "down" : "up";
-    this.scene.getPlayer().playAnim("idle", dir, true);
+    this.shell.getPlayer().playAnim("idle", dir, true);
 
     // perform place
-    this.scene.getWorld().putTileAt(selected, tx, ty);
-    const remaining = this.scene.getInventory().remove(selected);
+    this.shell.getWorld().putTileAt(selected, tx, ty);
+    const remaining = this.shell.getInventory().remove(selected);
     if (remaining !== false) {
-      if (remaining === 0) this.scene.setSelectedTool("move");
-      this.scene
+      if (remaining === 0) this.shell.setSelectedTool("move");
+      this.shell
         .getHud()
         .update(
-          this.scene.getInventory().getSlots(),
-          this.scene.getSelectedTool()
+          this.shell.getInventory().getSlots(),
+          this.shell.getSelectedTool()
         );
     }
   }

@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { GameScene } from "../scenes/GameScene";
 import { TILE_SIZE } from "../main";
 
-type Shell = Pick<GameScene, "cameras" | "input" | "getPlayer" | "getWorld">;
+type Shell = GameScene;
 
 type Params = {
   shell: Shell;

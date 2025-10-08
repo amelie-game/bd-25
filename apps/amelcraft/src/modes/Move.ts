@@ -3,16 +3,16 @@ import { GameScene } from "../scenes/GameScene";
 
 export class MoveMode {
   modeName = "move" as const;
-  private scene: GameScene;
+  private shell: GameScene;
   private dragging = false;
 
-  constructor(scene: GameScene) {
-    this.scene = scene;
+  constructor(shell: GameScene) {
+    this.shell = shell;
   }
 
   enter() {
-    this.scene.getCamera().recenter();
-    this.scene.getWorld().setHighlightTile(null);
+    this.shell.getCamera().recenter();
+    this.shell.getWorld().setHighlightTile(null);
   }
 
   exit() {
@@ -27,13 +27,13 @@ export class MoveMode {
     if (p.isDown) {
       // while dragging, move player toward pointer
       this.dragging = true;
-      this.scene.getPlayer().setTarget({ x: p.worldX, y: p.worldY });
+      this.shell.getPlayer().setTarget({ x: p.worldX, y: p.worldY });
     }
   }
 
   onPointerDown(p: Phaser.Input.Pointer) {
     // start moving to pointer immediately
-    this.scene.getPlayer().setTarget({ x: p.worldX, y: p.worldY });
+    this.shell.getPlayer().setTarget({ x: p.worldX, y: p.worldY });
   }
 
   onPointerUp(p: Phaser.Input.Pointer) {

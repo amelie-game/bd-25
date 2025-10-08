@@ -6,7 +6,7 @@ import { GameScene } from "../scenes/GameScene";
 
 import "../hud/HUD.js";
 
-type Shell = Pick<GameScene, "events">;
+type Shell = GameScene;
 
 type Params = {
   shell: Shell;

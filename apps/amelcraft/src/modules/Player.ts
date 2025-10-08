@@ -76,7 +76,7 @@ export class Player {
   }
 
   // Owned movement target (pixel coordinates). Use setTarget to start/stop
-  // scene-driven movement. Call update(time, delta) each frame to progress.
+  // shell-driven movement. Call update(time, delta) each frame to progress.
   setTarget(point: { x: number; y: number } | null) {
     this.target = point;
   }
@@ -85,7 +85,7 @@ export class Player {
     return this.target !== null;
   }
 
-  // Called each frame by the scene. Drives moveTo when a target is present.
+  // Called each frame by the shell. Drives moveTo when a target is present.
   update(_time: number, delta: number) {
     if (this.target) {
       if (!this.moveTo(this.target.x, this.target.y, delta)) {
