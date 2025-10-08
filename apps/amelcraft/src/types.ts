@@ -20,6 +20,9 @@ export function toBlock(value: unknown): Block {
   throw new Error(`Invalid Block type: ${value}`);
 }
 
+const Movement = ["walk", "idle"] as const;
+export type Movement = (typeof Movement)[number];
+
 const Mode = ["collect", "move"] as const;
 export type Mode = (typeof Mode)[number];
 
@@ -36,3 +39,5 @@ export function toOption(value: unknown): Option {
 
   throw new Error(`Invalid Option type: ${value}`);
 }
+
+export type Direction = "right" | "left" | "up" | "down";

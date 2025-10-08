@@ -2,12 +2,9 @@ import Phaser from "phaser";
 import { TILE_SIZE } from "../main";
 import { GameScene } from "../scenes/GameScene";
 import { assets } from "../assets";
-import { PlayerAnimation } from "../types";
+import { Direction, Movement, PlayerAnimation } from "../types";
 
-type Direction = "right" | "left" | "up" | "down";
-type Movement = "walk" | "idle";
-
-type Shell = Pick<GameScene, "add" | "anims" | "isWalkable">;
+type Shell = Pick<GameScene, "add" | "anims" | "getWorld">;
 
 type Params = {
   shell: Shell;
@@ -87,7 +84,7 @@ export class Player {
       const ny = this.sprite.y + (dy / dist) * Math.min(move, dist);
 
       // Only move if the next position is walkable
-      if (this.shell.isWalkable(nx, ny)) {
+      if (this.shell.getWorld().isWalkable(nx, ny)) {
         // Determine direction for animation
         let dir: Direction = this.lastDirection;
         if (Math.abs(dx) > Math.abs(dy)) {

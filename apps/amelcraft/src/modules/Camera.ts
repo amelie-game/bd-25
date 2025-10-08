@@ -2,10 +2,7 @@ import Phaser from "phaser";
 import { GameScene } from "../scenes/GameScene";
 import { TILE_SIZE } from "../main";
 
-type Shell = Pick<
-  GameScene,
-  "cameras" | "input" | "getWorldDimensions" | "getPlayerPosition"
->;
+type Shell = Pick<GameScene, "cameras" | "input" | "getPlayer" | "getWorld">;
 
 type Params = {
   shell: Shell;
@@ -58,7 +55,7 @@ export class Camera {
     });
 
     this.camera.roundPixels = true;
-    this.camera.setBounds(0, 0, ...this.shell.getWorldDimensions());
+    this.camera.setBounds(0, 0, ...this.shell.getWorld().getDimensions());
     this.computeZoomBounds();
     this.setZoom(Phaser.Math.Clamp(1, this.minZoom, this.maxZoom));
   }
@@ -72,7 +69,7 @@ export class Camera {
   }
 
   recenter() {
-    const [playerX, playerY] = this.shell.getPlayerPosition();
+    const [playerX, playerY] = this.shell.getPlayer().getPosition();
     this.centerOn(playerX, playerY);
     this.clamp();
   }
@@ -86,8 +83,8 @@ export class Camera {
     const cam = this.camera;
     const viewW = cam.width / cam.zoom;
     const viewH = cam.height / cam.zoom;
-    const maxScrollX = this.shell.getWorldDimensions()[0] - viewW;
-    const maxScrollY = this.shell.getWorldDimensions()[1] - viewH;
+    const maxScrollX = this.shell.getWorld().getDimensions()[0] - viewW;
+    const maxScrollY = this.shell.getWorld().getDimensions()[1] - viewH;
     cam.scrollX = Phaser.Math.Clamp(cam.scrollX, 0, Math.max(0, maxScrollX));
     cam.scrollY = Phaser.Math.Clamp(cam.scrollY, 0, Math.max(0, maxScrollY));
   }
@@ -97,7 +94,8 @@ export class Camera {
     // Visible horizontal tiles = camera.displayWidth / TILE_SIZE = (cam.width / zoom) / TILE_SIZE
     // To cap at 100 tiles: zoom >= cam.width / (100 * TILE_SIZE)
     const cam = this.camera;
-    const fitWorldWidthZoom = cam.width / this.shell.getWorldDimensions()[0]; // zoom at which full 100 tiles exactly fit horizontally
+    const fitWorldWidthZoom =
+      cam.width / this.shell.getWorld().getDimensions()[0]; // zoom at which full 100 tiles exactly fit horizontally
     // Minimum allowed zoom is exactly the zoom that fits world width. (Not using height so we never show space beyond right edge.)
     this.minZoom = fitWorldWidthZoom;
     // Max zoom: only 8 tiles visible horizontally (or at least 1.0 if screen narrower than 8 tiles). This keeps tiles large.
