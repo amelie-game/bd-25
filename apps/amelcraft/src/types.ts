@@ -12,8 +12,12 @@ const Block = Object.values(assets.blocks.sprites) as ReadonlyArray<
 >;
 export type Block = (typeof Block)[number];
 
+function isBlock(value: unknown): value is Block {
+  return typeof value === "number" && Block.includes(value as Block);
+}
+
 export function toBlock(value: unknown): Block {
-  if (isFinite(Number(value)) && Block.includes(Number(value) as Block)) {
+  if (isBlock(value)) {
     return Number(value) as Block;
   }
 
@@ -25,6 +29,10 @@ export type Movement = (typeof Movement)[number];
 
 const Mode = ["collect", "move"] as const;
 export type Mode = (typeof Mode)[number];
+
+export function isMode(value: unknown): value is Mode {
+  return typeof value === "string" && Mode.includes(value as Mode);
+}
 
 const Option = [...Mode, ...Block] as const;
 export type Option = (typeof Option)[number];

@@ -65,7 +65,7 @@ export class Player {
         repeat: -1,
       });
     }
-    this.sprite.play("AmelieIdleDown", false);
+    this.playAnim("idle", "down", true);
   }
 
   getPosition(): [x: number, y: number] {
@@ -94,12 +94,12 @@ export class Player {
         }
         this.lastDirection = dir;
         // Play walk animation
-        this.sprite.play(Player.ANIMATIONS.walk[dir], true);
+        this.playAnim("walk", dir, true);
         this.sprite.x = nx;
         this.sprite.y = ny;
       } else {
         // If not walkable, stop movement and play idle
-        this.sprite.play(Player.ANIMATIONS.idle[this.lastDirection], true);
+        this.playAnim("idle", this.lastDirection, true);
 
         return false;
       }
@@ -108,7 +108,7 @@ export class Player {
       this.sprite.x = x;
       this.sprite.y = y;
       // Play idle animation facing last direction
-      this.sprite.play(Player.ANIMATIONS.idle[this.lastDirection], true);
+      this.playAnim("idle", this.lastDirection, true);
 
       return false;
     }
@@ -121,7 +121,8 @@ export class Player {
   }
 
   setDirection(dir: Direction) {
-    /* TODO */
+    this.lastDirection = dir;
+    this.playAnim("idle", dir, true);
   }
 
   getTile(): { x: number; y: number } {
