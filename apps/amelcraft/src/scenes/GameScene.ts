@@ -7,7 +7,7 @@ import { TILE_SIZE } from "../main";
 import { World } from "../modules/World";
 import { Inventory } from "../modules/Inventory";
 import { HUDManager } from "../modules/HUDManager";
-import { Camera } from "../modules/Camera2";
+import { Camera } from "../modules/Camera";
 import { Player } from "../modules/Player";
 import { MoveMode } from "../modes/Move";
 import { CollectMode } from "../modes/Collect";
