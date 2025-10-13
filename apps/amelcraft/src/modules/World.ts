@@ -4,6 +4,7 @@ import { TILE_SIZE, CHUNK_TILES } from "../constants";
 import { GameScene } from "../scenes/GameScene";
 import { tileIndex } from "../utils";
 import { makeValueNoise2D, mulberry32, pickBiome } from "../proc/gen";
+import { SerializedChunkDiffEntry } from "./persistence/IChunkStore";
 
 export class World {
   // For backward compatibility in existing code paths; delegates to chunk constants
@@ -19,15 +20,19 @@ export class World {
   ];
   private highlightTile: { x: number; y: number } | null = null;
   private gfx: Phaser.GameObjects.Graphics | null = null;
-  // Data-first representation of tiles (one layer for now)
+  // Data-first representation of tiles (one layer for now) - current state
   private baseTiles: Uint16Array = new Uint16Array(CHUNK_TILES * CHUNK_TILES);
+  // Baseline snapshot (procedurally generated) used for diffing
+  private baselineTiles: Uint16Array | null = null;
+  // Sparse diff overlay (index -> tileId) relative to baseline
+  private overlayDiff: Map<number, number> = new Map();
   // Track dirty tile indices for incremental rendering
   private dirty: Set<number> = new Set();
   private initialized = false;
 
   private seed: number; // per-chunk seed (32-bit)
 
-  constructor(shell: GameScene, seed: number) {
+  constructor(shell: GameScene, seed: number, private onMutate?: () => void) {
     this.shell = shell;
     this.seed = seed;
 
@@ -64,6 +69,8 @@ export class World {
 
     // Populate data array & render
     this.generateIsland(); // now deterministic using seed
+    // Capture baseline snapshot after generation (before player mutations)
+    this.baselineTiles = new Uint16Array(this.baseTiles);
     this.flushAll();
     this.initialized = true;
   }
@@ -143,6 +150,12 @@ export class World {
     if (this.baseTiles[idx] === tile) return; // no change
     this.baseTiles[idx] = tile;
     this.dirty.add(idx);
+    if (this.baselineTiles) {
+      const baseline = this.baselineTiles[idx];
+      if (tile === baseline) this.overlayDiff.delete(idx);
+      else this.overlayDiff.set(idx, tile);
+    }
+    this.onMutate && this.onMutate();
   }
 
   getDimensions(): [width: number, height: number] {
@@ -270,5 +283,31 @@ export class World {
       this.groundLayer.putTileAt(this.baseTiles[idx], tx, ty);
     });
     this.dirty.clear();
+  }
+
+  // Serialize sparse diff for persistence
+  serializeDiff(worldSeed: string | number, chunkX: number, chunkY: number) {
+    const diff: SerializedChunkDiffEntry[] = [];
+    this.overlayDiff.forEach((tileId, i) => diff.push({ i, t: tileId }));
+    return {
+      version: 0, // real version stamped by store
+      worldSeed,
+      chunkX,
+      chunkY,
+      biomeId: null, // placeholder
+      diff,
+      lastTouched: Date.now(),
+    };
+  }
+
+  // Apply previously saved diff onto current (assumes baseline already generated)
+  applyDiff(entries: SerializedChunkDiffEntry[]) {
+    for (const { i, t } of entries) {
+      if (i < 0 || i >= this.baseTiles.length) continue;
+      this.baseTiles[i] = t;
+      this.overlayDiff.set(i, t);
+      this.dirty.add(i);
+    }
+    this.flushDirty();
   }
 }
