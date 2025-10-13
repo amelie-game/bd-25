@@ -160,7 +160,7 @@ Storage key: `chunk:${worldSeed}:${x}:${y}`.
 - [x] Phase 7: Add dirty-tile diff rendering and batch updates
 - [x] Phase 8: Refactor modes (collect/place) to operate on data layer
 - [x] Phase 9: Add tests for determinism, persistence, and mutation correctness
-- [ ] Phase 10: Add biome registry and extend biome diversity
+- [x] Phase 10: Add biome registry and extend biome diversity
 - [ ] Phase 11: Performance instrumentation, throttling, and memory safeguards
 - [ ] Phase 12: Documentation updates (architecture, persistence format, biome system)
 ```

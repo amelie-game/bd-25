@@ -3,7 +3,8 @@ import { assets } from "../assets";
 import { TILE_SIZE, CHUNK_TILES, CHUNK_PIXELS } from "../constants";
 import { GameScene } from "../scenes/GameScene";
 import { tileIndex } from "../utils";
-import { makeValueNoise2D, mulberry32, pickBiome } from "../proc/gen";
+import { makeValueNoise2D, mulberry32 } from "../proc/gen";
+import { pickChunkBiome, getBiome } from "../proc/biomes";
 import { SerializedChunkDiffEntry } from "./persistence/IChunkStore";
 
 export class World {
@@ -35,6 +36,7 @@ export class World {
   private chunkY: number;
   private offsetX: number;
   private offsetY: number;
+  private biomeId: string | null = null;
 
   constructor(
     shell: GameScene,
@@ -84,7 +86,7 @@ export class World {
     this.gfx.setDepth(10);
 
     // Populate data array & render
-    this.generateIsland(); // now deterministic using seed
+    this.generateIsland(); // now deterministic using seed & biome
     // Capture baseline snapshot after generation (before player mutations)
     this.baselineTiles = new Uint16Array(this.baseTiles);
     this.flushAll();
@@ -192,7 +194,20 @@ export class World {
     const width = World.COLUMNS;
     const height = World.ROWS;
 
-    // Create deterministic RNG & noise
+    // Determine biome for this chunk (three-biome system)
+    // For now we treat every chunk as an island shape, then apply biome palette
+    // Biome pick uses worldSeed embedded inside per-chunk seed derivation previously upstream;
+    // we approximate by hashing the existing per-chunk seed with coords for determinism.
+    // (Future: pass worldSeed separately.)
+    const worldSeedApprox = this.seed; // placeholder; upstream manager can supply world seed later
+    this.biomeId = pickChunkBiome(
+      String(worldSeedApprox),
+      this.chunkX,
+      this.chunkY
+    );
+    const biomeDef = getBiome(this.biomeId)!;
+
+    // Create deterministic RNG & noise (seed influences shape variety, independent of biome choice)
     const rng = mulberry32(this.seed);
     const elevationNoise = makeValueNoise2D(this.seed ^ 0x9e3779b1);
     const moistureNoise = makeValueNoise2D(this.seed ^ 0x85ebca77);
@@ -234,34 +249,36 @@ export class World {
         // Clamp to plausible range
         elevation = Math.max(-1, Math.min(1, elevation));
         const moisture = (m + 1) / 2; // normalize to 0..1
-        const biome = pickBiome(elevation, moisture);
         const idx = tileIndex(x, y);
-        let tileId: number = WATER; // default ocean
-        switch (biome) {
-          case "ocean":
-            tileId = WATER;
-            waterCount++;
-            break;
-          case "shore":
-          case "shore-wet":
-            tileId = SAND;
-            sandCount++;
-            break;
-          case "grass":
-          case "dry-grass":
-            tileId = GRASS;
-            grassCount++;
-            break;
-          case "forest":
-          case "scrub":
-            tileId = BROWN;
-            brownCount++;
-            break;
-          case "mountain":
-          case "mountain-dry":
-            tileId = SNOW;
-            snowCount++;
-            break;
+        let tileId: number = WATER; // default ocean / outside island
+
+        // Basic island mask decision: treat elevation + radial as land if elevation > threshold
+        const isLand = elevation > -0.05; // adjustable threshold
+        if (!isLand) {
+          tileId = WATER;
+          waterCount++;
+        } else {
+          // Apply biome palette
+          switch (biomeDef.kind) {
+            case "grass": {
+              // Edge ring of sand (fallback to water outside island)
+              const edge = falloff > 0.9; // outer 10%
+              tileId = edge ? SAND : GRASS;
+              edge ? sandCount++ : grassCount++;
+              break;
+            }
+            case "desert": {
+              tileId = SAND;
+              sandCount++;
+              break;
+            }
+            case "snow": {
+              const edge = falloff > 0.9;
+              tileId = edge ? SAND : SNOW;
+              edge ? sandCount++ : snowCount++;
+              break;
+            }
+          }
         }
         this.baseTiles[idx] = tileId;
       }
@@ -275,7 +292,7 @@ export class World {
         (typeof navigator !== "undefined" && navigator.webdriver === false))
     ) {
       console.log(
-        `[WorldGen] chunk (${this.chunkX},${this.chunkY}) biome tile counts`,
+        `[WorldGen] chunk (${this.chunkX},${this.chunkY}) biome=${this.biomeId} tile counts`,
         {
           water: waterCount,
           sand: sandCount,
@@ -332,7 +349,7 @@ export class World {
       worldSeed,
       chunkX,
       chunkY,
-      biomeId: null, // placeholder
+      biomeId: this.biomeId,
       diff,
       lastTouched: Date.now(),
     };

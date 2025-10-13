@@ -213,7 +213,7 @@ export class CollectMode {
     } else if (tile.index === WATER) {
       // do nothing
     } else if (tile.index === SNOW) {
-      this.shell.getWorldManager().putTileAtGlobal(WATER, tx, ty);
+      this.shell.getWorldManager().putTileAtGlobal(GRASS, tx, ty);
     } else if (tile.index === SAND) {
       this.shell.getWorldManager().putTileAtGlobal(WATER, tx, ty);
     } else {
