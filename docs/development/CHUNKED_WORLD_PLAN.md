@@ -153,7 +153,7 @@ Storage key: `chunk:${worldSeed}:${x}:${y}`.
 ```markdown
 - [x] Phase 1: Add chunk sizing constants and coordinate helpers
 - [x] Phase 2: Introduce WorldManager and adapt existing World into single-chunk abstraction
-- [ ] Phase 3: Implement data-first tile array (Uint16Array) and refactor rendering to consume it
+- [x] Phase 3: Implement data-first tile array (Uint16Array) and refactor rendering to consume it
 - [ ] Phase 4: Add deterministic procedural generation (seed + biome selection)
 - [ ] Phase 5: Define persistence interfaces and implement IndexedDB + in-memory fallback
 - [ ] Phase 6: Implement lazy load/unload logic around player position

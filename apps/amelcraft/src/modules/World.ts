@@ -1,8 +1,8 @@
 import Phaser from "phaser";
 import { assets } from "../assets";
-import { TILE_SIZE } from "../constants";
-import { CHUNK_TILES } from "../constants";
+import { TILE_SIZE, CHUNK_TILES } from "../constants";
 import { GameScene } from "../scenes/GameScene";
+import { tileIndex } from "../utils";
 
 export class World {
   // For backward compatibility in existing code paths; delegates to chunk constants
@@ -10,6 +10,7 @@ export class World {
   static ROWS = CHUNK_TILES;
 
   private shell: GameScene;
+  private map!: Phaser.Tilemaps.Tilemap;
   private groundLayer!: Phaser.Tilemaps.TilemapLayer;
   private dimensions: [width: number, height: number] = [
     World.COLUMNS * TILE_SIZE,
@@ -17,6 +18,11 @@ export class World {
   ];
   private highlightTile: { x: number; y: number } | null = null;
   private gfx: Phaser.GameObjects.Graphics | null = null;
+  // Data-first representation of tiles (one layer for now)
+  private baseTiles: Uint16Array = new Uint16Array(CHUNK_TILES * CHUNK_TILES);
+  // Track dirty tile indices for incremental rendering
+  private dirty: Set<number> = new Set();
+  private initialized = false;
 
   constructor(shell: GameScene) {
     this.shell = shell;
@@ -45,21 +51,17 @@ export class World {
       return;
     }
 
+    this.map = map;
     this.groundLayer = layer;
-    // Generate island terrain (grass & water)
-    this.groundLayer.fill(
-      assets.blocks.sprites.Water,
-      0,
-      0,
-      World.COLUMNS,
-      World.ROWS
-    ); // start as water
     this.groundLayer.setDepth(0);
 
     this.gfx = this.shell.add.graphics();
     this.gfx.setDepth(10);
 
+    // Populate data array & render
     this.generateIsland();
+    this.flushAll();
+    this.initialized = true;
   }
 
   destroy() {
@@ -83,6 +85,9 @@ export class World {
     this.gfx.fillStyle(0x00ff00, 0.12);
     this.gfx.strokeRect(sx, sy, TILE_SIZE, TILE_SIZE);
     this.gfx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+
+    // Apply pending dirty tile updates after highlight drawing (if any)
+    if (this.dirty.size) this.flushDirty();
   }
 
   getHighlightTile() {
@@ -109,24 +114,31 @@ export class World {
   }
 
   isWalkable(x: number, y: number): boolean {
-    if (!this.groundLayer) return false;
-
-    const tile = this.groundLayer.getTileAtWorldXY(x, y, true);
-    if (!tile) return false;
-
-    switch (tile.index) {
-      case assets.blocks.sprites.Water:
-        return false;
-      default:
-        return true;
-    }
+    // Convert world pixel coords to tile indices
+    const tx = Math.floor(x / TILE_SIZE);
+    const ty = Math.floor(y / TILE_SIZE);
+    if (tx < 0 || ty < 0 || tx >= World.COLUMNS || ty >= World.ROWS)
+      return false;
+    const idx = tileIndex(tx, ty);
+    const tileId = this.baseTiles[idx];
+    return tileId !== assets.blocks.sprites.Water; // Non-water walkable for now
   }
 
   getTileAt(tx: number, ty: number) {
-    return this.groundLayer.getTileAt(tx, ty);
+    if (tx < 0 || ty < 0 || tx >= World.COLUMNS || ty >= World.ROWS)
+      return null;
+    const idx = tileIndex(tx, ty);
+    const index = this.baseTiles[idx];
+    // Emulate Phaser tile object minimally for existing mode logic
+    return { index } as Phaser.Tilemaps.Tile; // Future: richer abstraction
   }
+
   putTileAt(tile: number, tx: number, ty: number) {
-    this.groundLayer.putTileAt(tile, tx, ty);
+    if (tx < 0 || ty < 0 || tx >= World.COLUMNS || ty >= World.ROWS) return;
+    const idx = tileIndex(tx, ty);
+    if (this.baseTiles[idx] === tile) return; // no change
+    this.baseTiles[idx] = tile;
+    this.dirty.add(idx);
   }
 
   getDimensions(): [width: number, height: number] {
@@ -293,12 +305,35 @@ export class World {
         }
       }
 
-      // Apply tiles
+      // Apply tiles to data array only (defer rendering)
       for (let x = 0; x < width; x++) {
         for (let y = 0; y < height; y++) {
-          this.putTileAt(mask[x][y] ? GRASS : WATER, x, y);
+          const idx = tileIndex(x, y);
+          this.baseTiles[idx] = mask[x][y] ? GRASS : WATER;
         }
       }
     }
+  }
+
+  // Flush all tiles (initial population)
+  private flushAll() {
+    if (!this.groundLayer) return;
+    for (let y = 0; y < World.ROWS; y++) {
+      for (let x = 0; x < World.COLUMNS; x++) {
+        const idx = tileIndex(x, y);
+        const tileId = this.baseTiles[idx];
+        this.groundLayer.putTileAt(tileId, x, y);
+      }
+    }
+  }
+
+  private flushDirty() {
+    if (!this.groundLayer || !this.dirty.size) return;
+    this.dirty.forEach((idx) => {
+      const ty = Math.floor(idx / World.COLUMNS);
+      const tx = idx - ty * World.COLUMNS;
+      this.groundLayer.putTileAt(this.baseTiles[idx], tx, ty);
+    });
+    this.dirty.clear();
   }
 }
