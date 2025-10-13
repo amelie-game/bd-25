@@ -1,6 +1,12 @@
 import Phaser from "phaser";
 import { assets } from "../assets";
-import { TILE_SIZE, CHUNK_TILES, CHUNK_PIXELS } from "../constants";
+import {
+  TILE_SIZE,
+  CHUNK_TILES,
+  CHUNK_PIXELS,
+  FLOWER_DENSITY_DIVISOR,
+  OBJECT_DEPTH,
+} from "../constants";
 import { GameScene } from "../scenes/GameScene";
 import { tileIndex } from "../utils";
 import { makeValueNoise2D, mulberry32 } from "../proc/gen";
@@ -9,6 +15,7 @@ import {
   SerializedChunkDiffEntry,
   CHUNK_SERIALIZATION_VERSION,
 } from "./persistence/IChunkStore";
+import type { ObjectId, SerializedObjectEntry } from "../types";
 
 export class World {
   // For backward compatibility in existing code paths; delegates to chunk constants
@@ -40,6 +47,9 @@ export class World {
   private offsetX: number;
   private offsetY: number;
   private biomeId: string | null = null;
+  // Collectible objects (full snapshot persistence). Map linear tile index -> object id
+  private objects: Map<number, ObjectId> = new Map();
+  private objectSprites: Map<number, Phaser.GameObjects.Image> = new Map();
 
   constructor(
     shell: GameScene,
@@ -101,6 +111,9 @@ export class World {
       this.gfx.destroy();
       this.gfx = null;
     }
+    // Destroy object sprites
+    this.objectSprites.forEach((spr) => spr.destroy());
+    this.objectSprites.clear();
   }
 
   update(_time: number, _delta: number) {
@@ -286,6 +299,31 @@ export class World {
         this.baseTiles[idx] = tileId;
       }
     }
+
+    // === Procedural Flower Placement (Step 4) ===
+    if (biomeDef.kind === "grass") {
+      // Gather available flower object ids from generated assets (frame keys starting with 'flower_')
+      const flowerIds = Object.values(assets.objects.sprites).filter(
+        (id): id is ObjectId =>
+          typeof id === "string" && id.startsWith("flower_")
+      );
+      if (flowerIds.length) {
+        for (let x = 0; x < width; x++) {
+          for (let y = 0; y < height; y++) {
+            const idx = tileIndex(x, y);
+            if (this.baseTiles[idx] !== GRASS) continue; // only place on grass
+            // Density probability check
+            if (
+              FLOWER_DENSITY_DIVISOR > 0 &&
+              rng() < 1 / FLOWER_DENSITY_DIVISOR
+            ) {
+              const choice = flowerIds[Math.floor(rng() * flowerIds.length)];
+              this.addObject(choice, x, y); // rendering deferred to step 5
+            }
+          }
+        }
+      }
+    }
   }
 
   // Flush all tiles (initial population)
@@ -328,6 +366,7 @@ export class World {
   serializeDiff(worldSeed: string | number, chunkX: number, chunkY: number) {
     const diff: SerializedChunkDiffEntry[] = [];
     this.overlayDiff.forEach((tileId, i) => diff.push({ i, t: tileId }));
+    const objects: SerializedObjectEntry[] = this.serializeObjects();
     return {
       version: CHUNK_SERIALIZATION_VERSION,
       worldSeed,
@@ -335,6 +374,7 @@ export class World {
       chunkY,
       biomeId: this.biomeId,
       diff,
+      objects: objects.length ? objects : undefined,
       lastTouched: Date.now(),
     };
   }
@@ -348,5 +388,88 @@ export class World {
       this.dirty.add(i);
     }
     this.flushDirty();
+  }
+
+  // ==========================
+  // Object Container API (Step 3)
+  // ==========================
+  private toIndex(tx: number, ty: number) {
+    return tileIndex(tx, ty);
+  }
+
+  getObjectAt(tx: number, ty: number): { id: ObjectId; i: number } | null {
+    if (tx < 0 || ty < 0 || tx >= World.COLUMNS || ty >= World.ROWS)
+      return null;
+    const i = this.toIndex(tx, ty);
+    const id = this.objects.get(i);
+    return id ? { id, i } : null;
+  }
+
+  addObject(id: ObjectId, tx: number, ty: number): boolean {
+    if (tx < 0 || ty < 0 || tx >= World.COLUMNS || ty >= World.ROWS)
+      return false;
+    const i = this.toIndex(tx, ty);
+    if (this.objects.has(i)) return false; // already occupied
+    this.objects.set(i, id);
+    // Create sprite immediately if scene is active
+    this.spawnObjectSprite(i, id, tx, ty);
+    this.onMutate && this.onMutate();
+    return true;
+  }
+
+  removeObjectAt(tx: number, ty: number): boolean {
+    if (tx < 0 || ty < 0 || tx >= World.COLUMNS || ty >= World.ROWS)
+      return false;
+    const i = this.toIndex(tx, ty);
+    const existed = this.objects.delete(i);
+    if (existed) {
+      const spr = this.objectSprites.get(i);
+      spr?.destroy();
+      this.objectSprites.delete(i);
+    }
+    if (existed) this.onMutate && this.onMutate();
+    return existed;
+  }
+
+  serializeObjects(): SerializedObjectEntry[] {
+    const out: SerializedObjectEntry[] = [];
+    this.objects.forEach((id, i) => {
+      out.push({ i, k: id });
+    });
+    return out;
+  }
+
+  applySerializedObjects(list: SerializedObjectEntry[]) {
+    // Replace current snapshot (initial load). Later we could merge.
+    this.objects.clear();
+    // Clear any existing sprites (should not usually exist at load time)
+    this.objectSprites.forEach((s) => s.destroy());
+    this.objectSprites.clear();
+    for (const entry of list) {
+      if (entry.i < 0 || entry.i >= World.COLUMNS * World.ROWS) continue;
+      // basic bounds check already ensures linear index validity
+      this.objects.set(entry.i, entry.k);
+    }
+    // Spawn sprites for all objects
+    this.objects.forEach((id, i) => {
+      const ty = Math.floor(i / World.COLUMNS);
+      const tx = i - ty * World.COLUMNS;
+      this.spawnObjectSprite(i, id, tx, ty);
+    });
+  }
+
+  getObjectsCount() {
+    return this.objects.size;
+  }
+
+  private spawnObjectSprite(i: number, id: ObjectId, tx: number, ty: number) {
+    // Avoid duplicate sprites
+    if (this.objectSprites.has(i)) return;
+    const worldX = this.offsetX + tx * TILE_SIZE + TILE_SIZE / 2;
+    const worldY = this.offsetY + ty * TILE_SIZE + TILE_SIZE / 2;
+    const spr = this.shell.add.image(worldX, worldY, assets.objects.key, id);
+    spr.setDepth(OBJECT_DEPTH);
+    spr.setOrigin(0.5, 0.5);
+    this.objectSprites.set(i, spr);
   }
 }

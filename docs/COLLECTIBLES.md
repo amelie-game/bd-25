@@ -219,9 +219,9 @@ Edge cases (manual QA):
 ```
 1. [x] Extend types: ObjectId, InventoryItem, SerializedObjectEntry
 2. [x] Update IChunkStore interfaces & version note (optional objects[] field)
-3. [ ] Add object container & API to World (add/get/remove, serialize/apply)
-4. [ ] Procedural flower generation (grass biome only) with density constant
-5. [ ] Rendering for objects (depth ordering) & cleanup on destroy
+3. [x] Add object container & API to World (add/get/remove, serialize/apply)
+4. [x] Procedural flower generation (grass biome only) with density constant
+5. [x] Rendering for objects (depth ordering) & cleanup on destroy
 6. [ ] WorldManager global helpers (get/remove object at global coords)
 7. [ ] Modify CollectMode to prioritize object collection
 8. [ ] Refactor Inventory for union item kind (block/object) & stacking rules

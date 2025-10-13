@@ -6,6 +6,7 @@ import { InMemoryChunkStore } from "./persistence/InMemoryChunkStore";
 import { IndexedDBChunkStore } from "./persistence/IndexedDBChunkStore";
 import { CHUNK_TILES, CHUNK_PIXELS, TILE_SIZE } from "../constants";
 import { chunkKey } from "../utils";
+import type { ObjectId } from "../types";
 
 // Phase 2: Initial WorldManager implementation.
 // For now this simply owns the existing single World instance and provides
@@ -40,7 +41,8 @@ export class WorldManager {
   private lastFrameDirtyFlushed = 0;
   private newChunksThisFrame: string[] = [];
   private maxNewChunksPerFrame = 2; // throttle generation bursts
-  private maxActiveChunks = 9; // safety cap (e.g., 3x3 around player)
+  private maxActiveChunks = 10; // safety cap (e.g., 3x3 around player)
+  private pendingNeighborLoads: Set<string> = new Set(); // neighbors throttled this frame
 
   constructor(
     shell: GameScene,
@@ -57,19 +59,47 @@ export class WorldManager {
     }
   }
 
+  // Temporary debug flag (toggle in console: window.AMEL_DEBUG_CHUNKS = true/false)
+  private debugEnabled(): boolean {
+    // @ts-ignore
+    return (window as any).AMEL_DEBUG_CHUNKS === true;
+  }
+  private dlog(...args: any[]) {
+    if (this.debugEnabled()) {
+      // eslint-disable-next-line no-console
+      console.log("[WMDBG]", ...args);
+    }
+  }
+
   // Get (or create) a chunk
   getOrLoadChunk(chunkX: number, chunkY: number): World {
     const key = chunkKey(chunkX, chunkY);
     let chunk = this.activeChunks.get(key);
-    if (chunk) return chunk;
+    if (chunk) {
+      this.dlog(
+        "getOrLoadChunk: exists",
+        key,
+        "active=",
+        this.activeChunks.size
+      );
+      return chunk;
+    }
     if (this.activeChunks.size >= this.maxActiveChunks) {
       // Always allow ensuring the primary (0,0) chunk exists to avoid recursion
       if (!(chunkX === 0 && chunkY === 0) && this.activeChunks.has("0:0")) {
         // eslint-disable-next-line no-console
         console.warn(
           "[WorldManager] active chunk cap reached; skipping load",
-          key
+          key,
+          "active=",
+          this.activeChunks.size,
+          "cap=",
+          this.maxActiveChunks
         );
+        this.dlog("skip-cap", {
+          request: key,
+          active: Array.from(this.activeChunks.keys()),
+        });
         return this.activeChunks.get("0:0")!;
       }
     }
@@ -77,6 +107,11 @@ export class WorldManager {
     if (this.newChunksThisFrame.length >= this.maxNewChunksPerFrame) {
       // Defer: return existing 0:0 if present, else proceed if this is 0:0
       if (!(chunkX === 0 && chunkY === 0) && this.activeChunks.has("0:0")) {
+        this.dlog("throttle-newChunksThisFrame", {
+          request: key,
+          generatedThisFrame: this.newChunksThisFrame.slice(),
+          limit: this.maxNewChunksPerFrame,
+        });
         return this.activeChunks.get("0:0")!;
       }
     }
@@ -91,6 +126,10 @@ export class WorldManager {
     );
     this.activeChunks.set(key, chunk);
     this.newChunksThisFrame.push(key);
+    this.dlog("chunk-created", key, {
+      active: this.activeChunks.size,
+      newChunksThisFrame: this.newChunksThisFrame.slice(),
+    });
     const endGen = performance.now?.() ?? Date.now();
     this.metrics.generationTimeMs += endGen - startGen;
     this.metrics.chunksLoaded++;
@@ -151,6 +190,39 @@ export class WorldManager {
     chunk.putTileAt(tile, localX, localY);
   }
 
+  getObjectAtGlobal(
+    globalTileX: number,
+    globalTileY: number
+  ): {
+    id: ObjectId;
+    chunkX: number;
+    chunkY: number;
+    localX: number;
+    localY: number;
+  } | null {
+    const { chunkX, chunkY, localX, localY } = this.globalTileToChunk(
+      globalTileX,
+      globalTileY
+    );
+    const chunk = this.activeChunks.get(chunkKey(chunkX, chunkY));
+    if (!chunk) return null;
+    const obj = (chunk as any).getObjectAt?.(localX, localY) as {
+      id: ObjectId;
+      i: number;
+    } | null;
+    return obj ? { id: obj.id, chunkX, chunkY, localX, localY } : null;
+  }
+
+  removeObjectAtGlobal(globalTileX: number, globalTileY: number): boolean {
+    const { chunkX, chunkY, localX, localY } = this.globalTileToChunk(
+      globalTileX,
+      globalTileY
+    );
+    const chunk = this.activeChunks.get(chunkKey(chunkX, chunkY));
+    if (!chunk) return false;
+    return (chunk as any).removeObjectAt?.(localX, localY) ?? false;
+  }
+
   isWalkable(x: number, y: number) {
     // x,y are pixel coordinates in global space
     const chunkX = Math.floor(x / CHUNK_PIXELS);
@@ -200,8 +272,9 @@ export class WorldManager {
         this.lastPlayerChunk.y !== playerChunkY
       ) {
         this.lastPlayerChunk = { x: playerChunkX, y: playerChunkY };
-        this.ensureNeighborChunks(playerChunkX, playerChunkY);
+        // Step 5 pre-fix: adjust ordering to unload far chunks first to avoid hitting active cap
         this.unloadFarChunks(playerChunkX, playerChunkY);
+        this.ensureNeighborChunks(playerChunkX, playerChunkY);
       }
     }
     // Update all active chunks
@@ -209,6 +282,7 @@ export class WorldManager {
 
     // Phase 7: batched dirty flushing respecting global budget
     this.flushDirtyBatched();
+    this.processPendingNeighborLoads();
     // Post-update metrics
     this.metrics.activeChunks = this.activeChunks.size;
     if (this.metrics.dirtyTilesFlushed > 0) {
@@ -269,11 +343,28 @@ export class WorldManager {
   }
 
   private ensureNeighborChunks(centerX: number, centerY: number) {
+    this.dlog("ensureNeighborChunks", {
+      centerX,
+      centerY,
+      radius: this.neighborRadius,
+    });
     for (let dx = -this.neighborRadius; dx <= this.neighborRadius; dx++) {
       for (let dy = -this.neighborRadius; dy <= this.neighborRadius; dy++) {
-        this.getOrLoadChunk(centerX + dx, centerY + dy);
+        const cx = centerX + dx;
+        const cy = centerY + dy;
+        const key = chunkKey(cx, cy);
+        if (!this.activeChunks.has(key)) {
+          this.dlog("attempt-load-neighbor", key);
+          this.pendingNeighborLoads.add(key);
+          if (this.newChunksThisFrame.length < this.maxNewChunksPerFrame) {
+            this.getOrLoadChunk(cx, cy);
+            if (this.activeChunks.has(key))
+              this.pendingNeighborLoads.delete(key);
+          }
+        }
       }
     }
+    this.dlog("post-ensure", { active: Array.from(this.activeChunks.keys()) });
   }
 
   private unloadFarChunks(centerX: number, centerY: number) {
@@ -286,6 +377,8 @@ export class WorldManager {
       );
       if (dist > this.neighborRadius) toUnload.push(keyStr);
     });
+    if (toUnload.length)
+      this.dlog("unloadFarChunks", { centerX, centerY, toUnload });
     toUnload.forEach((keyStr) => {
       const chunk = this.activeChunks.get(keyStr);
       if (!chunk) return;
@@ -295,6 +388,8 @@ export class WorldManager {
         chunk.destroy();
         this.activeChunks.delete(keyStr);
         this.metrics.chunksUnloaded++;
+        this.dlog("unloaded", keyStr, "remaining=", this.activeChunks.size);
+        this.pendingNeighborLoads.delete(keyStr);
       });
     });
   }
@@ -319,6 +414,9 @@ export class WorldManager {
     const data = await this.store.load(key);
     if (data && data.diff?.length) {
       chunk.applyDiff(data.diff.map((d) => ({ i: d.i, t: d.t })));
+    }
+    if (data && (data as any).objects?.length) {
+      (chunk as any).applySerializedObjects?.((data as any).objects);
     }
   }
 
@@ -380,6 +478,29 @@ export class WorldManager {
       total += (c as any).getDirtyCount?.() ?? 0;
     });
     return total;
+  }
+
+  private processPendingNeighborLoads() {
+    if (!this.pendingNeighborLoads.size) return;
+    if (this.newChunksThisFrame.length >= this.maxNewChunksPerFrame) return;
+    const keys = Array.from(this.pendingNeighborLoads);
+    for (const key of keys) {
+      if (this.newChunksThisFrame.length >= this.maxNewChunksPerFrame) break;
+      if (this.activeChunks.has(key)) {
+        this.pendingNeighborLoads.delete(key);
+        continue;
+      }
+      const [sx, sy] = key.split(":").map((v) => parseInt(v, 10));
+      this.dlog("process-pending", key, {
+        generatedThisFrame: this.newChunksThisFrame.slice(),
+        remainingBefore: this.pendingNeighborLoads.size,
+      });
+      this.getOrLoadChunk(sx, sy);
+      if (this.activeChunks.has(key)) this.pendingNeighborLoads.delete(key);
+    }
+    if (this.pendingNeighborLoads.size) {
+      this.dlog("pending-remain", Array.from(this.pendingNeighborLoads));
+    }
   }
 
   // Public accessor for metrics snapshot
