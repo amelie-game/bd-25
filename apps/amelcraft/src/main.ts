@@ -2,9 +2,6 @@ import Phaser from "phaser";
 import { TitleScene } from "./scenes/TitleScene";
 import { GameScene } from "./scenes/GameScene";
 
-// Shared constants
-const TILE_SIZE = 48;
-
 function getViewportSize() {
   return { width: window.innerWidth, height: window.innerHeight };
 }
@@ -40,6 +37,3 @@ const game = new Phaser.Game(config);
 window.addEventListener("resize", () => {
   // Nothing else required here currently; scenes can listen to scale resize event
 });
-
-// Export constants if needed by scenes (future use)
-export { TILE_SIZE };

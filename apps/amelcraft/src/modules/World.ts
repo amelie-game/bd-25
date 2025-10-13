@@ -1,11 +1,13 @@
 import Phaser from "phaser";
 import { assets } from "../assets";
-import { TILE_SIZE } from "../main";
+import { TILE_SIZE } from "../constants";
+import { CHUNK_TILES } from "../constants";
 import { GameScene } from "../scenes/GameScene";
 
 export class World {
-  static COLUMNS = 100;
-  static ROWS = 100;
+  // For backward compatibility in existing code paths; delegates to chunk constants
+  static COLUMNS = CHUNK_TILES;
+  static ROWS = CHUNK_TILES;
 
   private shell: GameScene;
   private groundLayer!: Phaser.Tilemaps.TilemapLayer;

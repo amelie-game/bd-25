@@ -49,3 +49,13 @@ export function toOption(value: unknown): Option {
 }
 
 export type Direction = "right" | "left" | "up" | "down";
+
+export interface ChunkCoord {
+  chunkX: number;
+  chunkY: number;
+}
+
+export interface WorldTileCoord extends ChunkCoord {
+  tileX: number; // tile coordinate inside chunk (0..CHUNK_TILES-1)
+  tileY: number;
+}

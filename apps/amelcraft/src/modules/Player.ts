@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { TILE_SIZE } from "../main";
+import { TILE_SIZE } from "../constants";
 import { GameScene } from "../scenes/GameScene";
 import { assets } from "../assets";
 import { Direction, Movement, PlayerAnimation } from "../types";

@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { GameScene } from "../scenes/GameScene";
-import { TILE_SIZE } from "../main";
+import { TILE_SIZE } from "../constants";
 import { assets } from "../assets";
 // getDirection not needed here — facing is handled in startCollection
 import { Direction, toBlock } from "../types";

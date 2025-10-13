@@ -3,7 +3,7 @@
 // ===================
 import Phaser from "phaser";
 import { type Option, isMode } from "../types";
-import { TILE_SIZE } from "../main";
+import { TILE_SIZE } from "../constants";
 import { World } from "../modules/World";
 import { Inventory } from "../modules/Inventory";
 import { HUDManager } from "../modules/HUDManager";
