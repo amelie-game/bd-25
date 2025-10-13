@@ -59,3 +59,44 @@ export interface WorldTileCoord extends ChunkCoord {
   tileX: number; // tile coordinate inside chunk (0..CHUNK_TILES-1)
   tileY: number;
 }
+
+// ==========================
+// Collectible Object Typing
+// ==========================
+// Derive object frame id union directly from generated assets (avoid manual list)
+const ObjectSpriteValues = Object.values(
+  assets.objects.sprites
+) as ReadonlyArray<
+  (typeof assets.objects.sprites)[keyof typeof assets.objects.sprites]
+>;
+export type ObjectId = (typeof ObjectSpriteValues)[number];
+
+// Serialized representation of a collectible object inside a chunk snapshot
+export interface SerializedObjectEntry {
+  /** linear tile index (tx + ty * CHUNK_TILES) */
+  i: number;
+  /** object kind / atlas frame key */
+  k: ObjectId;
+}
+
+// Inventory union (block vs object). Blocks remain numeric tile ids; objects are atlas frame keys.
+export type InventoryItem =
+  | { kind: "block"; id: Block; count: number }
+  | { kind: "object"; id: ObjectId; count: number };
+
+export function isObjectId(v: unknown): v is ObjectId {
+  return (
+    typeof v === "string" &&
+    (ObjectSpriteValues as readonly (string | number)[]).includes(v as any)
+  );
+}
+
+export function isSerializedObjectEntry(v: any): v is SerializedObjectEntry {
+  return (
+    v &&
+    typeof v === "object" &&
+    typeof v.i === "number" &&
+    isFinite(v.i) &&
+    isObjectId(v.k)
+  );
+}

@@ -331,13 +331,6 @@ export class WorldManager {
     try {
       await this.store.save(storageKey, serialized);
       this.dirtyChunks.delete(keyStr);
-      // eslint-disable-next-line no-console
-      console.log(
-        "[ChunkSave] saved",
-        storageKey,
-        `diff=${serialized.diff.length}`,
-        `active=${this.activeChunks.size}`
-      );
       this.metrics.savesPerformed++;
     } catch (e) {
       console.warn("Failed to save chunk diff", e);

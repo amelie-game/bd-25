@@ -5,7 +5,10 @@ import { GameScene } from "../scenes/GameScene";
 import { tileIndex } from "../utils";
 import { makeValueNoise2D, mulberry32 } from "../proc/gen";
 import { pickChunkBiome, getBiome } from "../proc/biomes";
-import { SerializedChunkDiffEntry } from "./persistence/IChunkStore";
+import {
+  SerializedChunkDiffEntry,
+  CHUNK_SERIALIZATION_VERSION,
+} from "./persistence/IChunkStore";
 
 export class World {
   // For backward compatibility in existing code paths; delegates to chunk constants
@@ -326,7 +329,7 @@ export class World {
     const diff: SerializedChunkDiffEntry[] = [];
     this.overlayDiff.forEach((tileId, i) => diff.push({ i, t: tileId }));
     return {
-      version: 0, // real version stamped by store
+      version: CHUNK_SERIALIZATION_VERSION,
       worldSeed,
       chunkX,
       chunkY,

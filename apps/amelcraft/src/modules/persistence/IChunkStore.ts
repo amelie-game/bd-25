@@ -1,4 +1,7 @@
-// Phase 5: Persistence interfaces & data contracts
+// Phase 5+: Persistence interfaces & data contracts
+// Step 2 (Collectibles): add optional `objects` snapshot for collectible world objects.
+
+import type { SerializedObjectEntry } from "../../types";
 
 export interface SerializedChunkDiffEntry {
   /** linear tile index */
@@ -22,6 +25,8 @@ export interface SerializedChunk {
   biomeId: string | null; // placeholder for future biome tagging
   diff: SerializedChunkDiffEntry[]; // sparse differences from regenerated baseline
   meta?: SerializedTileMetaEntry[]; // optional sparse metadata entries
+  /** Optional full object snapshot (flowers, etc.). If absent, treat as empty set. */
+  objects?: SerializedObjectEntry[];
   lastTouched: number; // epoch ms
 }
 
@@ -40,4 +45,5 @@ export function chunkStorageKey(
   return `chunk:${worldSeed}:${x}:${y}`;
 }
 
-export const CHUNK_SERIALIZATION_VERSION = 1;
+// Increment when the wire format meaningfully changes. Adding optional fields is backward compatible.
+export const CHUNK_SERIALIZATION_VERSION = 2;
