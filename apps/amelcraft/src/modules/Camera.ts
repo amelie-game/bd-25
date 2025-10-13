@@ -30,7 +30,7 @@ export class Camera {
 
     this.camera.roundPixels = true;
     const worldDimensions = this.shell.getWorld().getDimensions();
-    this.camera.setBounds(0, 0, worldDimensions[0], worldDimensions[1]);
+    this.camera.setBounds(0, 0, worldDimensions[0], worldDimensions[1]); // initial (single chunk)
     this.computeZoomBounds();
     this.camera.setZoom(Phaser.Math.Clamp(1, this.minZoom, this.maxZoom));
     const player = this.shell.getPlayer().getPosition();
@@ -100,6 +100,19 @@ export class Camera {
 
   // public API: called each frame; draw HUD rect debug overlay
   update(time: number, delta: number) {
+    // Dynamically expand camera bounds based on active chunks
+    const bounds = this.shell.getWorldManager().getActiveWorldBounds();
+    if (bounds) {
+      const camBounds = this.camera.getBounds();
+      if (
+        camBounds.x !== bounds.x ||
+        camBounds.y !== bounds.y ||
+        camBounds.width !== bounds.width ||
+        camBounds.height !== bounds.height
+      ) {
+        this.camera.setBounds(bounds.x, bounds.y, bounds.width, bounds.height);
+      }
+    }
     const playerSprite = this.shell.getPlayer().getSprite();
     const camera = this.camera;
 

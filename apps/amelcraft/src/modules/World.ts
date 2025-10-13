@@ -106,8 +106,9 @@ export class World {
     if (!tile) return;
 
     const { x, y } = tile;
-    const sx = x * TILE_SIZE;
-    const sy = y * TILE_SIZE;
+    // Apply chunk world offset so highlight draws at correct global position
+    const sx = this.offsetX + x * TILE_SIZE;
+    const sy = this.offsetY + y * TILE_SIZE;
     this.gfx.lineStyle(2, 0x00ff00, 0.7);
     this.gfx.fillStyle(0x00ff00, 0.12);
     this.gfx.strokeRect(sx, sy, TILE_SIZE, TILE_SIZE);

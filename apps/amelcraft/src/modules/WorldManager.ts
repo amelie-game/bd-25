@@ -142,6 +142,32 @@ export class WorldManager {
     this.activeChunks.forEach((chunk) => chunk.update(time, delta));
   }
 
+  // Compute pixel bounds spanning all active chunks (for camera clamping)
+  getActiveWorldBounds(): {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null {
+    if (this.activeChunks.size === 0) return null;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    this.activeChunks.forEach((chunk) => {
+      const { chunkX, chunkY } = chunk.getChunkCoords();
+      const x0 = chunkX * CHUNK_PIXELS;
+      const y0 = chunkY * CHUNK_PIXELS;
+      const x1 = x0 + CHUNK_PIXELS;
+      const y1 = y0 + CHUNK_PIXELS;
+      if (x0 < minX) minX = x0;
+      if (y0 < minY) minY = y0;
+      if (x1 > maxX) maxX = x1;
+      if (y1 > maxY) maxY = y1;
+    });
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  }
+
   destroy() {
     // Save & destroy all active chunks
     const promises: Promise<any>[] = [];
