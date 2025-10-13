@@ -11,7 +11,8 @@ export class MoveMode {
   }
 
   enter() {
-    this.shell.getWorld().setHighlightTile(null);
+    // Clear highlight via manager to avoid referencing a specific chunk instance
+    this.shell.getWorldManager().setHighlightTile(-1, -1); // outside any chunk
   }
 
   exit() {

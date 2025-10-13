@@ -23,6 +23,8 @@ export class WorldManager {
   private neighborRadius = 1; // radius in chunks to keep loaded around player
   private highlight: { worldX: number; worldY: number } | null = null;
   private lastPlayerChunk: { x: number; y: number } | null = null;
+  private dirtyBudgetPerFrame = 800; // max tiles to flush globally per frame (tunable)
+  private dirtySpilloverCursor: string | null = null; // remember which chunk to resume with
 
   constructor(
     shell: GameScene,
@@ -140,6 +142,9 @@ export class WorldManager {
     }
     // Update all active chunks
     this.activeChunks.forEach((chunk) => chunk.update(time, delta));
+
+    // Phase 7: batched dirty flushing respecting global budget
+    this.flushDirtyBatched();
   }
 
   // Compute pixel bounds spanning all active chunks (for camera clamping)
@@ -263,5 +268,46 @@ export class WorldManager {
     } catch (e) {
       console.warn("Failed to save chunk diff", e);
     }
+  }
+
+  private flushDirtyBatched() {
+    let remaining = this.dirtyBudgetPerFrame;
+    if (remaining <= 0 || this.activeChunks.size === 0) return;
+    // Stable list of chunk keys for round-robin
+    const keys = Array.from(this.activeChunks.keys());
+    if (
+      !this.dirtySpilloverCursor ||
+      !this.activeChunks.has(this.dirtySpilloverCursor)
+    ) {
+      this.dirtySpilloverCursor = keys[0];
+    }
+    let startIndex = keys.indexOf(this.dirtySpilloverCursor);
+    if (startIndex < 0) startIndex = 0;
+    let i = 0;
+    while (remaining > 0 && i < keys.length) {
+      const key = keys[(startIndex + i) % keys.length];
+      const chunk = this.activeChunks.get(key)!;
+      const dirtyCount = (chunk as any).getDirtyCount?.() ?? 0;
+      if (dirtyCount > 0) {
+        // Budget share heuristic: at least 1, otherwise proportional
+        const share = Math.max(
+          1,
+          Math.ceil((dirtyCount / this.totalDirty()) * this.dirtyBudgetPerFrame)
+        );
+        const allowance = Math.min(remaining, share);
+        const used = (chunk as any).flushDirty?.(allowance) || 0;
+        remaining -= used;
+        if (used > 0) this.dirtySpilloverCursor = key; // continue from here next frame
+      }
+      i++;
+    }
+  }
+
+  private totalDirty(): number {
+    let total = 0;
+    this.activeChunks.forEach((c) => {
+      total += (c as any).getDirtyCount?.() ?? 0;
+    });
+    return total;
   }
 }

@@ -114,8 +114,7 @@ export class World {
     this.gfx.strokeRect(sx, sy, TILE_SIZE, TILE_SIZE);
     this.gfx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
 
-    // Apply pending dirty tile updates after highlight drawing (if any)
-    if (this.dirty.size) this.flushDirty();
+    // Dirty flushing now centrally scheduled by WorldManager (Phase 7)
   }
 
   getHighlightTile() {
@@ -299,14 +298,28 @@ export class World {
     }
   }
 
-  private flushDirty() {
-    if (!this.groundLayer || !this.dirty.size) return;
-    this.dirty.forEach((idx) => {
+  // Flush up to `limit` dirty tiles (if limit omitted, flush all)
+  flushDirty(limit?: number): number {
+    if (!this.groundLayer || !this.dirty.size) return 0;
+    let processed = 0;
+    if (limit === undefined) limit = this.dirty.size;
+    const toWrite: number[] = [];
+    for (const idx of this.dirty) {
+      toWrite.push(idx);
+      if (toWrite.length >= limit) break;
+    }
+    for (const idx of toWrite) {
       const ty = Math.floor(idx / World.COLUMNS);
       const tx = idx - ty * World.COLUMNS;
       this.groundLayer.putTileAt(this.baseTiles[idx], tx, ty);
-    });
-    this.dirty.clear();
+      this.dirty.delete(idx);
+      processed++;
+    }
+    return processed;
+  }
+
+  getDirtyCount() {
+    return this.dirty.size;
   }
 
   // Serialize sparse diff for persistence
