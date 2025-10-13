@@ -11,6 +11,7 @@ This document explores multiple architectural styles for game development, as di
 5. Hexagonal Architecture: Sample & Evaluation
 6. Model-View-Controller (MVC): Sample & Evaluation
 7. Event-Driven / Observer Pattern: Sample & Evaluation
+8. Related Documents
 
 ## Decision
 
@@ -743,3 +744,16 @@ export class MainScene extends Phaser.Scene {
   - Can lead to hard-to-trace event chains and debugging challenges.
   - Risk of memory leaks if observers are not properly removed.
   - Overuse can make codebase harder to reason about.
+
+---
+
+## Related Documents
+
+These companion documents dive deeper into specific subsystems referenced (generation, persistence, performance, and testing strategy):
+
+- [Persistence & Diff Format](./PERSISTENCE.md) – Sparse diff storage, versioning, and save semantics.
+- [Biomes](./BIOMES.md) – Biome registry, deterministic selection, and palette rationale.
+- [Performance & Instrumentation](./PERFORMANCE.md) – Dirty batching, throttling, metrics, dev overlay.
+- [Testing](./TESTING.md) – Test stack, coverage areas, and future targets.
+
+Use this architecture document for high‑level structural direction; consult the linked docs for implementation details and operational practices.
