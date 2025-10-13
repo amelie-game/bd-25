@@ -28,7 +28,7 @@ export class PlaceMode {
     const tx = Math.floor(p.worldX / TILE_SIZE);
     const ty = Math.floor(p.worldY / TILE_SIZE);
 
-    const selected = this.shell.getSelectedTool();
+    const selected = this.shell.getMode();
     // ensure it's a block option
     try {
       const opt = toOption(selected as unknown);
@@ -95,13 +95,10 @@ export class PlaceMode {
     this.shell.getWorld().putTileAt(selected, tx, ty);
     const remaining = this.shell.getInventory().remove(selected);
     if (remaining !== false) {
-      if (remaining === 0) this.shell.setSelectedTool("move");
+      if (remaining === 0) this.shell.selectMode("move");
       this.shell
         .getHud()
-        .update(
-          this.shell.getInventory().getSlots(),
-          this.shell.getSelectedTool()
-        );
+        .update(this.shell.getInventory().getSlots(), this.shell.getMode());
     }
   }
 }

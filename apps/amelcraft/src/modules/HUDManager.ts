@@ -11,7 +11,7 @@ type Shell = GameScene;
 type Params = {
   shell: Shell;
   inventory: InventorySlot[];
-  selectedTool: Option;
+  selectedMode: Option;
   onSelect: (val: Option) => void;
 };
 
@@ -20,7 +20,7 @@ export class HUDManager {
   private onSelect: (val: Option) => void;
   private hudEl: HudRoot;
 
-  constructor({ inventory, selectedTool, shell, onSelect }: Params) {
+  constructor({ inventory, selectedMode, shell, onSelect }: Params) {
     this.shell = shell;
     this.onSelect = onSelect;
     this.hudEl = document.createElement("amelcraft-hud") as HudRoot;
@@ -30,10 +30,10 @@ export class HUDManager {
 
     document.body.appendChild(this.hudEl);
 
-    this.update(inventory, selectedTool);
+    this.update(inventory, selectedMode);
   }
 
-  update(inventory: InventorySlot[], selectedTool: Option) {
+  update(inventory: InventorySlot[], selectedMode: Option) {
     const blockKeys = inventory.map((slot) => {
       // Try to find the sprite name for this block index
       const spriteName = Object.keys(assets.blocks.sprites).find(
@@ -52,7 +52,7 @@ export class HUDManager {
 
     this.hudEl.data = {
       blockKeys,
-      selected: selectedTool,
+      selected: selectedMode,
       onSelect: this.onSelect,
     };
   }

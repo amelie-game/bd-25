@@ -18,7 +18,7 @@ import { Pointer } from "../modules/Pointer";
 // === GAME SCENE  ===
 // ===================
 export class GameScene extends Phaser.Scene {
-  private selectedTool: Option = "move";
+  private selectedMode: Option = "move";
   // pointer down state is managed by the individual modes
 
   private collectMode: CollectMode;
@@ -66,8 +66,8 @@ export class GameScene extends Phaser.Scene {
     return this.world;
   }
 
-  getSelectedTool() {
-    return this.selectedTool;
+  getMode() {
+    return this.selectedMode;
   }
 
   // ===================
@@ -83,11 +83,11 @@ export class GameScene extends Phaser.Scene {
     this.inventory = new Inventory();
     this.hud = new HUDManager({
       inventory: this.inventory.getSlots(),
-      selectedTool: this.selectedTool,
+      selectedMode: this.selectedMode,
       shell: this,
-      onSelect: (tool) => {
-        // route selection through setSelectedTool so modes are created/teardown correctly
-        this.setSelectedTool(tool);
+      onSelect: (mode) => {
+        // route selection through selectMode so modes are created/teardown correctly
+        this.selectMode(mode);
       },
     });
     const playerStart: [number, number] = [
@@ -101,8 +101,8 @@ export class GameScene extends Phaser.Scene {
     this.camera = new Camera({ shell: this });
     // Ensure initial view is centered on the player
     this.camera.recenter();
-    // Ensure HUD selection switches modes via setSelectedTool and initialize mode
-    this.setSelectedTool(this.selectedTool);
+    // Ensure HUD selection switches modes via selectMode and initialize mode
+    this.selectMode(this.selectedMode);
 
     // --- Pointer/Touch Controls ---
     this.setupUnifiedPointerControls();
@@ -155,9 +155,9 @@ export class GameScene extends Phaser.Scene {
   // target is now owned by Player; modes should call this.getPlayer().setTarget(...)
 
   // Mode orchestration ------------------------------------------------------
-  setSelectedTool(tool: Option) {
-    this.selectedTool = tool;
-    this.hud.update(this.inventory.getSlots(), this.selectedTool);
+  selectMode(mode: Option) {
+    this.selectedMode = mode;
+    this.hud.update(this.inventory.getSlots(), this.selectedMode);
     this.ensureActiveMode();
   }
 
@@ -166,9 +166,9 @@ export class GameScene extends Phaser.Scene {
     this.activeMode.exit();
 
     // Pick mode
-    if (isMode(this.selectedTool) && this.selectedTool === "move") {
+    if (isMode(this.selectedMode) && this.selectedMode === "move") {
       this.activeMode = this.moveMode;
-    } else if (isMode(this.selectedTool) && this.selectedTool === "collect") {
+    } else if (isMode(this.selectedMode) && this.selectedMode === "collect") {
       this.activeMode = this.collectMode;
     } else {
       // Block = place mode

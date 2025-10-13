@@ -207,10 +207,7 @@ export class CollectMode {
     if (this.shell.getInventory().add(toBlock(tile.index))) {
       this.shell
         .getHud()
-        .update(
-          this.shell.getInventory().getSlots(),
-          this.shell.getSelectedTool()
-        );
+        .update(this.shell.getInventory().getSlots(), this.shell.getMode());
     }
 
     if (tile.index === GRASS) {
