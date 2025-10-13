@@ -4,7 +4,7 @@
 import Phaser from "phaser";
 import { type Option, isMode } from "../types";
 import { TILE_SIZE } from "../constants";
-import { World } from "../modules/World";
+import { World } from "../modules/World"; // legacy direct world reference (single chunk)
 import { Inventory } from "../modules/Inventory";
 import { HUDManager } from "../modules/HUDManager";
 import { Camera } from "../modules/Camera";
@@ -13,6 +13,7 @@ import { MoveMode } from "../modes/Move";
 import { CollectMode } from "../modes/Collect";
 import { PlaceMode } from "../modes/Place";
 import { Pointer } from "../modules/Pointer";
+import { WorldManager } from "../modules/WorldManager";
 
 // ===================
 // === GAME SCENE  ===
@@ -27,7 +28,7 @@ export class GameScene extends Phaser.Scene {
   private activeMode: CollectMode | MoveMode | PlaceMode;
 
   private pointer!: Pointer;
-  private world!: World;
+  private worldManager!: WorldManager;
   private inventory!: Inventory;
   private hud!: HUDManager;
   private camera!: Camera;
@@ -63,7 +64,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   getWorld() {
-    return this.world;
+    return this.worldManager.getPrimaryWorld();
   }
 
   getMode() {
@@ -79,7 +80,7 @@ export class GameScene extends Phaser.Scene {
     window.game = this.game;
 
     this.pointer = new Pointer(this);
-    this.world = new World(this);
+    this.worldManager = new WorldManager(this);
     this.inventory = new Inventory();
     this.hud = new HUDManager({
       inventory: this.inventory.getSlots(),
@@ -109,7 +110,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number) {
-    this.world.update(time, delta);
+    // Delegate world update through manager (single world for now)
+    this.worldManager.update(time, delta);
 
     // Delegate update to active mode (if any)
     this.activeMode.update(time, delta);
@@ -121,7 +123,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   destroy() {
-    this.world.destroy();
+    this.worldManager.destroy();
     this.hud.destroy();
   }
 
