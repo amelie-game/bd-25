@@ -1,5 +1,6 @@
 import { GameScene } from "../scenes/GameScene";
 import { World } from "./World";
+import { hashString32 } from "../proc/gen";
 
 // Phase 2: Initial WorldManager implementation.
 // For now this simply owns the existing single World instance and provides
@@ -27,7 +28,9 @@ export class WorldManager {
       );
     }
     if (!this.primaryWorld) {
-      this.primaryWorld = new World(this.shell);
+      // Derive a per-chunk seed (for now only 0,0) using a stable hash
+      const chunkSeed = hashString32(`${this.seed}:${chunkX}:${chunkY}`);
+      this.primaryWorld = new World(this.shell, chunkSeed);
     }
     return this.primaryWorld;
   }

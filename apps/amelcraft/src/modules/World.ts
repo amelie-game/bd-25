@@ -3,6 +3,7 @@ import { assets } from "../assets";
 import { TILE_SIZE, CHUNK_TILES } from "../constants";
 import { GameScene } from "../scenes/GameScene";
 import { tileIndex } from "../utils";
+import { makeValueNoise2D, mulberry32, pickBiome } from "../proc/gen";
 
 export class World {
   // For backward compatibility in existing code paths; delegates to chunk constants
@@ -24,8 +25,11 @@ export class World {
   private dirty: Set<number> = new Set();
   private initialized = false;
 
-  constructor(shell: GameScene) {
+  private seed: number; // per-chunk seed (32-bit)
+
+  constructor(shell: GameScene, seed: number) {
     this.shell = shell;
+    this.seed = seed;
 
     // --- Tilemap and Tileset ---
     const map = this.shell.make.tilemap({
@@ -59,7 +63,7 @@ export class World {
     this.gfx.setDepth(10);
 
     // Populate data array & render
-    this.generateIsland();
+    this.generateIsland(); // now deterministic using seed
     this.flushAll();
     this.initialized = true;
   }
@@ -146,172 +150,103 @@ export class World {
   }
 
   generateIsland() {
-    {
-      const GRASS = assets.blocks.sprites.Grass; // tileset index for grass
-      const WATER = assets.blocks.sprites.Water; // tileset index for water
-      const width = World.COLUMNS;
-      const height = World.ROWS;
-      const total = width * height;
-      // Target grass ratio between 0.60 and 0.80
-      const targetRatio = Phaser.Math.FloatBetween(0.63, 0.77);
-      const cx = width / 2;
-      const cy = height / 2;
-      // Random elliptical radii (gives large-scale variety)
-      const baseArea = targetRatio * total;
-      const baseRadius = Math.sqrt(baseArea / Math.PI);
-      const radX = baseRadius * Phaser.Math.FloatBetween(0.9, 1.35);
-      const radY = baseRadius * Phaser.Math.FloatBetween(0.85, 1.25);
+    const GRASS = assets.blocks.sprites.Grass;
+    const WATER = assets.blocks.sprites.Water;
+    const SAND = assets.blocks.sprites.Yellow;
+    const BROWN = assets.blocks.sprites.Brown;
+    const SNOW = assets.blocks.sprites.Snow;
 
-      // Layered value noise parameters
-      const off1x = Math.random() * 1000;
-      const off1y = Math.random() * 1000;
-      const off2x = Math.random() * 2000;
-      const off2y = Math.random() * 2000;
-      const off3x = Math.random() * 3000;
-      const off3y = Math.random() * 3000;
-      const s1 = Phaser.Math.FloatBetween(0.025, 0.045); // large features
-      const s2 = s1 * 2.3; // medium
-      const s3 = s1 * 5.1; // small
-      const noiseScale = Phaser.Math.FloatBetween(0.32, 0.4); // influence of noise on shoreline
+    const width = World.COLUMNS;
+    const height = World.ROWS;
 
-      // Prepare mask
-      const mask: boolean[][] = Array.from({ length: width }, () =>
-        Array<boolean>(height).fill(false)
-      );
-      let grassCount = 0;
+    // Create deterministic RNG & noise
+    const rng = mulberry32(this.seed);
+    const elevationNoise = makeValueNoise2D(this.seed ^ 0x9e3779b1);
+    const moistureNoise = makeValueNoise2D(this.seed ^ 0x85ebca77);
 
-      const valueNoise = (x: number, y: number): number => {
-        // 2D value noise with bilinear interpolation & smoothstep
-        const xi = Math.floor(x);
-        const yi = Math.floor(y);
-        const xf = x - xi;
-        const yf = y - yi;
-        const smooth = (t: number) => t * t * (3 - 2 * t);
-        const rnd = (ix: number, iy: number) => {
-          let n = ix * 374761393 + iy * 668265263;
-          n = (n ^ (n >> 13)) * 1274126177;
-          n = n ^ (n >> 16);
-          return (n & 0xffffffff) / 0xffffffff; // 0..1
-        };
-        const v00 = rnd(xi, yi);
-        const v10 = rnd(xi + 1, yi);
-        const v01 = rnd(xi, yi + 1);
-        const v11 = rnd(xi + 1, yi + 1);
-        const sx = smooth(xf);
-        const sy = smooth(yf);
-        const ix0 = Phaser.Math.Linear(v00, v10, sx);
-        const ix1 = Phaser.Math.Linear(v01, v11, sx);
-        const v = Phaser.Math.Linear(ix0, ix1, sy);
-        return v * 2 - 1; // -1..1
-      };
+    // Island mask via radial falloff blended with elevation noise.
+    // Enlarged island: slightly increase effective radius & reduce negative bias.
+    const cx = width / 2;
+    const cy = height / 2;
+    const ISLAND_RADIUS_SCALE = 1.08; // >1 expands land area
+    const maxRadius = Math.min(cx, cy) * 0.95 * ISLAND_RADIUS_SCALE;
 
-      for (let x = 0; x < width; x++) {
-        for (let y = 0; y < height; y++) {
-          const dx = x - cx + 0.5;
-          const dy = y - cy + 0.5;
-          const distNorm = Math.sqrt(
-            (dx * dx) / (radX * radX) + (dy * dy) / (radY * radY)
-          );
-          // Layered coherent noise (multi-octave)
-          const n1 = valueNoise(x * s1 + off1x, y * s1 + off1y);
-          const n2 = valueNoise(x * s2 + off2x, y * s2 + off2y);
-          const n3 = valueNoise(x * s3 + off3x, y * s3 + off3y);
-          const layered = 0.55 * n1 + 0.3 * n2 + 0.15 * n3; // already in -1..1 range weighting
-          // Adjust shoreline: subtract noise so negative noise pushes outward (larger island in some lobes)
-          const shape = distNorm - layered * noiseScale;
-          const inside = shape < 1;
-          if (inside) {
-            mask[x][y] = true;
+    let waterCount = 0,
+      sandCount = 0,
+      grassCount = 0,
+      brownCount = 0,
+      snowCount = 0;
+    const shapeFactor = 0.9 + rng() * 0.3; // slight bump so centers are fuller
+    const radialPower = 1.15; // lower power flattens curve -> larger island
+
+    for (let x = 0; x < width; x++) {
+      for (let y = 0; y < height; y++) {
+        const dx = x - cx + 0.5;
+        const dy = y - cy + 0.5;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const falloff = dist / maxRadius; // 0 center → ~1 edge
+        // Radial positive component (higher in center, 0 or negative at edge after subtraction)
+        const radial =
+          Math.pow(Math.max(0, 1 - falloff), radialPower) * shapeFactor;
+        // Sample noises at multiple scales (combined elevation & moisture)
+        const e =
+          elevationNoise(x * 0.04, y * 0.04) * 0.6 +
+          elevationNoise(x * 0.09, y * 0.09) * 0.3 +
+          elevationNoise(x * 0.16, y * 0.16) * 0.1;
+        const m =
+          moistureNoise(x * 0.05, y * 0.05) * 0.7 +
+          moistureNoise(x * 0.12, y * 0.12) * 0.3;
+        // New elevation formula: combine radial bulge with noise and lighter downward bias
+        let elevation = e * 0.5 + radial * 1.05 - 0.15; // expanded land mass
+        // Clamp to plausible range
+        elevation = Math.max(-1, Math.min(1, elevation));
+        const moisture = (m + 1) / 2; // normalize to 0..1
+        const biome = pickBiome(elevation, moisture);
+        const idx = tileIndex(x, y);
+        let tileId: number = WATER; // default ocean
+        switch (biome) {
+          case "ocean":
+            tileId = WATER;
+            waterCount++;
+            break;
+          case "shore":
+          case "shore-wet":
+            tileId = SAND;
+            sandCount++;
+            break;
+          case "grass":
+          case "dry-grass":
+            tileId = GRASS;
             grassCount++;
-          }
+            break;
+          case "forest":
+          case "scrub":
+            tileId = BROWN;
+            brownCount++;
+            break;
+          case "mountain":
+          case "mountain-dry":
+            tileId = SNOW;
+            snowCount++;
+            break;
         }
+        this.baseTiles[idx] = tileId;
       }
+    }
 
-      // Edge smoothing (same approach as before)
-      const dirs8 = [
-        [-1, -1],
-        [0, -1],
-        [1, -1],
-        [-1, 0],
-        /*self*/ [1, 0],
-        [-1, 1],
-        [0, 1],
-        [1, 1],
-      ];
-      const smoothPass = () => {
-        const copy = mask.map((c) => c.slice());
-        for (let x = 1; x < width - 1; x++) {
-          for (let y = 1; y < height - 1; y++) {
-            let count = 0;
-            for (const [dx, dy] of dirs8) if (copy[x + dx][y + dy]) count++;
-            if (count >= 5) mask[x][y] = true;
-            else if (count <= 2) mask[x][y] = false;
-          }
-        }
-      };
-      smoothPass();
-
-      // Recount after smoothing
-      grassCount = 0;
-      for (let x = 0; x < width; x++)
-        for (let y = 0; y < height; y++) if (mask[x][y]) grassCount++;
-      let ratio = grassCount / total;
-
-      // Ratio adjustment to stay within [0.6,0.8]
-      if (ratio < 0.6 || ratio > 0.8) {
-        const edgeGrass: Array<[number, number]> = [];
-        const edgeWater: Array<[number, number]> = [];
-        const dirs4 = [
-          [1, 0],
-          [-1, 0],
-          [0, 1],
-          [0, -1],
-        ];
-        for (let x = 1; x < width - 1; x++) {
-          for (let y = 1; y < height - 1; y++) {
-            const isGrass = mask[x][y];
-            let boundary = false;
-            for (const [dx, dy] of dirs4) {
-              const nx = x + dx,
-                ny = y + dy;
-              if (mask[nx][ny] !== isGrass) {
-                boundary = true;
-                break;
-              }
-            }
-            if (boundary) (isGrass ? edgeGrass : edgeWater).push([x, y]);
-          }
-        }
-        if (ratio < 0.6) {
-          Phaser.Utils.Array.Shuffle(edgeWater);
-          for (const [x, y] of edgeWater) {
-            if (ratio >= 0.6) break;
-            if (!mask[x][y]) {
-              mask[x][y] = true;
-              grassCount++;
-              ratio = grassCount / total;
-            }
-          }
-        } else {
-          Phaser.Utils.Array.Shuffle(edgeGrass);
-          for (const [x, y] of edgeGrass) {
-            if (ratio <= 0.8) break;
-            if (mask[x][y]) {
-              mask[x][y] = false;
-              grassCount--;
-              ratio = grassCount / total;
-            }
-          }
-        }
-      }
-
-      // Apply tiles to data array only (defer rendering)
-      for (let x = 0; x < width; x++) {
-        for (let y = 0; y < height; y++) {
-          const idx = tileIndex(x, y);
-          this.baseTiles[idx] = mask[x][y] ? GRASS : WATER;
-        }
-      }
+    // Lightweight deterministic stats for debugging variety (only log if devtools open heuristic)
+    // eslint-disable-next-line no-console
+    if (
+      (window as any).__DEV__ ||
+      (typeof navigator !== "undefined" && navigator.webdriver === false)
+    ) {
+      console.log("[WorldGen] chunk (0,0) biome tile counts", {
+        water: waterCount,
+        sand: sandCount,
+        grass: grassCount,
+        brown: brownCount,
+        snow: snowCount,
+      });
     }
   }
 
