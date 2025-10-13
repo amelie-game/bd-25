@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { assets } from "../assets";
-import { TILE_SIZE, CHUNK_TILES } from "../constants";
+import { TILE_SIZE, CHUNK_TILES, CHUNK_PIXELS } from "../constants";
 import { GameScene } from "../scenes/GameScene";
 import { tileIndex } from "../utils";
 import { makeValueNoise2D, mulberry32, pickBiome } from "../proc/gen";
@@ -31,10 +31,24 @@ export class World {
   private initialized = false;
 
   private seed: number; // per-chunk seed (32-bit)
+  private chunkX: number;
+  private chunkY: number;
+  private offsetX: number;
+  private offsetY: number;
 
-  constructor(shell: GameScene, seed: number, private onMutate?: () => void) {
+  constructor(
+    shell: GameScene,
+    seed: number,
+    private onMutate?: () => void,
+    chunkX = 0,
+    chunkY = 0
+  ) {
     this.shell = shell;
     this.seed = seed;
+    this.chunkX = chunkX;
+    this.chunkY = chunkY;
+    this.offsetX = this.chunkX * CHUNK_PIXELS;
+    this.offsetY = this.chunkY * CHUNK_PIXELS;
 
     // --- Tilemap and Tileset ---
     const map = this.shell.make.tilemap({
@@ -63,6 +77,8 @@ export class World {
     this.map = map;
     this.groundLayer = layer;
     this.groundLayer.setDepth(0);
+    // Position this chunk's layer at its world offset so each chunk draws in correct place
+    this.groundLayer.setPosition(this.offsetX, this.offsetY);
 
     this.gfx = this.shell.add.graphics();
     this.gfx.setDepth(10);
@@ -110,24 +126,24 @@ export class World {
       this.highlightTile = null;
       return;
     }
-
-    // Convert to tile coords. We use the world tile dimensions as a heuristic:
-    // tile indices should be within [0, COLUMNS-1] and [0, ROWS-1].
-    // If values are outside that range we assume they're pixel coordinates.
-    let tx = Math.floor(tile.worldX / TILE_SIZE);
-    let ty = Math.floor(tile.worldY / TILE_SIZE);
-
-    // Clamp to valid tile range so drawing can't go off-world.
-    tx = Phaser.Math.Clamp(tx, 0, World.COLUMNS - 1);
-    ty = Phaser.Math.Clamp(ty, 0, World.ROWS - 1);
-
+    // Translate global world pixel coords to this chunk's local tile indices
+    const localX = tile.worldX - this.offsetX;
+    const localY = tile.worldY - this.offsetY;
+    const tx = Math.floor(localX / TILE_SIZE);
+    const ty = Math.floor(localY / TILE_SIZE);
+    if (tx < 0 || ty < 0 || tx >= World.COLUMNS || ty >= World.ROWS) {
+      this.highlightTile = null; // outside this chunk
+      return;
+    }
     this.highlightTile = { x: tx, y: ty };
   }
 
   isWalkable(x: number, y: number): boolean {
-    // Convert world pixel coords to tile indices
-    const tx = Math.floor(x / TILE_SIZE);
-    const ty = Math.floor(y / TILE_SIZE);
+    // Convert global world pixel coords to local tile indices
+    const localX = x - this.offsetX;
+    const localY = y - this.offsetY;
+    const tx = Math.floor(localX / TILE_SIZE);
+    const ty = Math.floor(localY / TILE_SIZE);
     if (tx < 0 || ty < 0 || tx >= World.COLUMNS || ty >= World.ROWS)
       return false;
     const idx = tileIndex(tx, ty);
@@ -136,12 +152,12 @@ export class World {
   }
 
   getTileAt(tx: number, ty: number) {
+    // Chunk-local tile lookup
     if (tx < 0 || ty < 0 || tx >= World.COLUMNS || ty >= World.ROWS)
       return null;
     const idx = tileIndex(tx, ty);
     const index = this.baseTiles[idx];
-    // Emulate Phaser tile object minimally for existing mode logic
-    return { index } as Phaser.Tilemaps.Tile; // Future: richer abstraction
+    return { index } as Phaser.Tilemaps.Tile;
   }
 
   putTileAt(tile: number, tx: number, ty: number) {
@@ -156,6 +172,10 @@ export class World {
       else this.overlayDiff.set(idx, tile);
     }
     this.onMutate && this.onMutate();
+  }
+
+  getChunkCoords() {
+    return { chunkX: this.chunkX, chunkY: this.chunkY };
   }
 
   getDimensions(): [width: number, height: number] {
@@ -253,13 +273,16 @@ export class World {
       (window as any).__DEV__ ||
       (typeof navigator !== "undefined" && navigator.webdriver === false)
     ) {
-      console.log("[WorldGen] chunk (0,0) biome tile counts", {
-        water: waterCount,
-        sand: sandCount,
-        grass: grassCount,
-        brown: brownCount,
-        snow: snowCount,
-      });
+      console.log(
+        `[WorldGen] chunk (${this.chunkX},${this.chunkY}) biome tile counts`,
+        {
+          water: waterCount,
+          sand: sandCount,
+          grass: grassCount,
+          brown: brownCount,
+          snow: snowCount,
+        }
+      );
     }
   }
 

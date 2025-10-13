@@ -156,7 +156,7 @@ Storage key: `chunk:${worldSeed}:${x}:${y}`.
 - [x] Phase 3: Implement data-first tile array (Uint16Array) and refactor rendering to consume it
 - [x] Phase 4: Add deterministic procedural generation (seed + biome selection)
 - [x] Phase 5: Define persistence interfaces and implement IndexedDB + in-memory fallback
-- [ ] Phase 6: Implement lazy load/unload logic around player position
+- [x] Phase 6: Implement lazy load/unload logic around player position
 - [ ] Phase 7: Add dirty-tile diff rendering and batch updates
 - [ ] Phase 8: Refactor modes (collect/place) to operate on data layer
 - [ ] Phase 9: Add tests for determinism, persistence, and mutation correctness

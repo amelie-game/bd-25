@@ -64,7 +64,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   getWorld() {
+    // Legacy: returns the player's current chunk (primary) for backward compatibility
     return this.worldManager.getPrimaryWorld();
+  }
+
+  getWorldManager() {
+    return this.worldManager;
   }
 
   getMode() {

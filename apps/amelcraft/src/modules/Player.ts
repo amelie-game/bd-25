@@ -111,7 +111,7 @@ export class Player {
       const ny = this.sprite.y + (dy / dist) * Math.min(move, dist);
 
       // Only move if the next position is walkable
-      if (this.shell.getWorld().isWalkable(nx, ny)) {
+      if (this.shell.getWorldManager().isWalkable(nx, ny)) {
         // Determine direction for animation
         let dir: Direction = this.lastDirection;
         if (Math.abs(dx) > Math.abs(dy)) {
@@ -147,7 +147,7 @@ export class Player {
   // Returns true if movement was initiated (or the player is already moving towards a chosen neighbor),
   // false if no suitable neighbor was found.
   movePlayerAdjacentTo(tx: number, ty: number, onArrive: () => void): boolean {
-    const world = this.shell.getWorld();
+    const manager = this.shell.getWorldManager();
     const player = this;
     const pTile = player.getTile();
 
@@ -211,13 +211,18 @@ export class Player {
 
     // Prefer walkable center candidates first
     let chosen = cardinalCandidates.find((n) => {
-      const nt = world.getTileAt(n.x, n.y);
+      const nt = manager.getTileAtGlobal(n.x, n.y);
       if (!nt) return false;
-      return world.isWalkable((n.x + 0.5) * TILE_SIZE, (n.y + 0.5) * TILE_SIZE);
+      return manager.isWalkable(
+        (n.x + 0.5) * TILE_SIZE,
+        (n.y + 0.5) * TILE_SIZE
+      );
     });
     // fallback to any cardinal tile (even if not walkable center)
     if (!chosen)
-      chosen = cardinalCandidates.find((n) => world.getTileAt(n.x, n.y));
+      chosen = cardinalCandidates.find((n) =>
+        manager.getTileAtGlobal(n.x, n.y)
+      );
     // fallback to diagonals
     if (!chosen) {
       const diagonals = [
@@ -227,14 +232,15 @@ export class Player {
         { x: tx + 1, y: ty + 1 },
       ];
       chosen = diagonals.find((n) => {
-        const nt = world.getTileAt(n.x, n.y);
+        const nt = manager.getTileAtGlobal(n.x, n.y);
         if (!nt) return false;
-        return world.isWalkable(
+        return manager.isWalkable(
           (n.x + 0.5) * TILE_SIZE,
           (n.y + 0.5) * TILE_SIZE
         );
       });
-      if (!chosen) chosen = diagonals.find((n) => world.getTileAt(n.x, n.y));
+      if (!chosen)
+        chosen = diagonals.find((n) => manager.getTileAtGlobal(n.x, n.y));
     }
 
     if (!chosen) return false;

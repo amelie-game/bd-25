@@ -18,10 +18,7 @@ export class PlaceMode {
   update(_time: number, _delta: number) {}
 
   onPointerMove(p: Phaser.Input.Pointer) {
-    // Update highlight tile using the shared World helper
-    this.shell
-      .getWorld()
-      .setHighlightTile({ worldX: p.worldX, worldY: p.worldY });
+    this.shell.getWorldManager().setHighlightTile(p.worldX, p.worldY);
   }
 
   onPointerDown(p: Phaser.Input.Pointer) {
@@ -37,8 +34,7 @@ export class PlaceMode {
       return;
     }
 
-    const world = this.shell.getWorld();
-    const tile = world.getTileAt(tx, ty);
+    const tile = this.shell.getWorldManager().getTileAtGlobal(tx, ty);
     if (!tile) return;
 
     const inventory = this.shell.getInventory();
@@ -92,7 +88,7 @@ export class PlaceMode {
     this.shell.getPlayer().playAnim("idle", dir, true);
 
     // perform place
-    this.shell.getWorld().putTileAt(selected, tx, ty);
+    this.shell.getWorldManager().putTileAtGlobal(selected, tx, ty);
     const remaining = this.shell.getInventory().remove(selected);
     if (remaining !== false) {
       if (remaining === 0) this.shell.selectMode("move");

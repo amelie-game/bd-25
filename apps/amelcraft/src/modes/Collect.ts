@@ -49,7 +49,7 @@ export class CollectMode {
     // draw highlights/progress
     if (!this.gfx) return;
     this.gfx.clear();
-    const tile = this.shell.getWorld().getHighlightTile();
+    const tile = this.shell.getWorldManager().getHighlightTile();
     if (tile) {
       const { x, y } = tile;
       // Draw progress bar if collecting this tile
@@ -87,9 +87,7 @@ export class CollectMode {
     const ty = Math.floor(p.worldY / TILE_SIZE);
 
     // Update highlight tile using a shared World helper (avoids duplicated math).
-    this.shell
-      .getWorld()
-      .setHighlightTile({ worldX: p.worldX, worldY: p.worldY });
+    this.shell.getWorldManager().setHighlightTile(p.worldX, p.worldY);
 
     // If dragging to new tile while collecting: cancel current and start new if pointer still down
     if (this.collecting) {
@@ -116,8 +114,7 @@ export class CollectMode {
   }
 
   private tryStartCollection(tx: number, ty: number) {
-    const world = this.shell.getWorld();
-    const tile = world.getTileAt(tx, ty);
+    const tile = this.shell.getWorldManager().getTileAtGlobal(tx, ty);
     if (!tile) return;
 
     const pTile = this.shell.getPlayer().getTile();
@@ -199,8 +196,7 @@ export class CollectMode {
     const GROUND = assets.blocks.sprites.Brown;
     const SNOW = assets.blocks.sprites.Snow;
     const SAND = assets.blocks.sprites.Yellow;
-    const world = this.shell.getWorld();
-    const tile = world.getTileAt(tx, ty);
+    const tile = this.shell.getWorldManager().getTileAtGlobal(tx, ty);
     if (!tile) return;
 
     // Try to add to inventory
@@ -211,17 +207,17 @@ export class CollectMode {
     }
 
     if (tile.index === GRASS) {
-      world.putTileAt(GROUND, tx, ty);
+      this.shell.getWorldManager().putTileAtGlobal(GROUND, tx, ty);
     } else if (tile.index === GROUND) {
-      world.putTileAt(WATER, tx, ty);
+      this.shell.getWorldManager().putTileAtGlobal(WATER, tx, ty);
     } else if (tile.index === WATER) {
       // do nothing
     } else if (tile.index === SNOW) {
-      world.putTileAt(WATER, tx, ty);
+      this.shell.getWorldManager().putTileAtGlobal(WATER, tx, ty);
     } else if (tile.index === SAND) {
-      world.putTileAt(WATER, tx, ty);
+      this.shell.getWorldManager().putTileAtGlobal(WATER, tx, ty);
     } else {
-      world.putTileAt(WATER, tx, ty);
+      this.shell.getWorldManager().putTileAtGlobal(WATER, tx, ty);
     }
   }
 
