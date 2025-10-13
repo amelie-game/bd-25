@@ -270,8 +270,9 @@ export class World {
     // Lightweight deterministic stats for debugging variety (only log if devtools open heuristic)
     // eslint-disable-next-line no-console
     if (
-      (window as any).__DEV__ ||
-      (typeof navigator !== "undefined" && navigator.webdriver === false)
+      typeof window !== "undefined" &&
+      ((window as any).__DEV__ ||
+        (typeof navigator !== "undefined" && navigator.webdriver === false))
     ) {
       console.log(
         `[WorldGen] chunk (${this.chunkX},${this.chunkY}) biome tile counts`,
