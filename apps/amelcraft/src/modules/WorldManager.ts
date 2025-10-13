@@ -25,6 +25,22 @@ export class WorldManager {
   private lastPlayerChunk: { x: number; y: number } | null = null;
   private dirtyBudgetPerFrame = 800; // max tiles to flush globally per frame (tunable)
   private dirtySpilloverCursor: string | null = null; // remember which chunk to resume with
+  // Phase 11: performance & instrumentation metrics
+  private metrics = {
+    frame: 0,
+    chunksLoaded: 0,
+    chunksUnloaded: 0,
+    savesPerformed: 0,
+    dirtyTilesFlushed: 0,
+    totalDirtyFlushTimeMs: 0,
+    generationTimeMs: 0, // cumulative for last frame's new chunks
+    activeChunks: 0,
+    avgFlushBatchSize: 0,
+  };
+  private lastFrameDirtyFlushed = 0;
+  private newChunksThisFrame: string[] = [];
+  private maxNewChunksPerFrame = 2; // throttle generation bursts
+  private maxActiveChunks = 9; // safety cap (e.g., 3x3 around player)
 
   constructor(
     shell: GameScene,
@@ -46,6 +62,25 @@ export class WorldManager {
     const key = chunkKey(chunkX, chunkY);
     let chunk = this.activeChunks.get(key);
     if (chunk) return chunk;
+    if (this.activeChunks.size >= this.maxActiveChunks) {
+      // Always allow ensuring the primary (0,0) chunk exists to avoid recursion
+      if (!(chunkX === 0 && chunkY === 0) && this.activeChunks.has("0:0")) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          "[WorldManager] active chunk cap reached; skipping load",
+          key
+        );
+        return this.activeChunks.get("0:0")!;
+      }
+    }
+    // Throttle generation: if we've hit cap, skip creation (will be attempted next frame)
+    if (this.newChunksThisFrame.length >= this.maxNewChunksPerFrame) {
+      // Defer: return existing 0:0 if present, else proceed if this is 0:0
+      if (!(chunkX === 0 && chunkY === 0) && this.activeChunks.has("0:0")) {
+        return this.activeChunks.get("0:0")!;
+      }
+    }
+    const startGen = performance.now?.() ?? Date.now();
     const chunkSeed = hashString32(`${this.seed}:${chunkX}:${chunkY}`);
     chunk = new World(
       this.shell,
@@ -55,11 +90,34 @@ export class WorldManager {
       chunkY
     );
     this.activeChunks.set(key, chunk);
+    this.newChunksThisFrame.push(key);
+    const endGen = performance.now?.() ?? Date.now();
+    this.metrics.generationTimeMs += endGen - startGen;
+    this.metrics.chunksLoaded++;
     // Load diff async
     this.loadExisting(chunkX, chunkY, chunk).catch((e) =>
       console.warn("Chunk load failed", e)
     );
     return chunk;
+  }
+
+  // Helper to schedule a chunk load on a later frame when throttled
+  private getOrLoadChunkDeferred(chunkX: number, chunkY: number): World {
+    // Return existing if somehow created concurrently
+    const existing = this.activeChunks.get(chunkKey(chunkX, chunkY));
+    if (existing) return existing;
+    // Create a lightweight placeholder world? For now, just create when called; throttle only prevents multiple bursts per frame
+    return this.getOrLoadChunk(chunkX, chunkY);
+  }
+
+  private stubChunk: World | null = null;
+  private getStubChunk(): World {
+    // Retained for API compatibility; now simply return 0:0 if exists, else first active
+    if (this.activeChunks.has("0:0")) return this.activeChunks.get("0:0")!;
+    const first = this.activeChunks.values().next();
+    if (!first.done) return first.value;
+    // If no chunks at all yet, force create 0:0 ignoring throttles
+    return this.getOrLoadChunk(0, 0);
   }
 
   // Legacy access for code still expecting a single world (returns player current chunk or 0,0)
@@ -124,6 +182,12 @@ export class WorldManager {
   }
 
   update(time: number, delta: number) {
+    // Reset per-frame counters
+    this.metrics.frame++;
+    this.metrics.dirtyTilesFlushed = 0;
+    this.metrics.totalDirtyFlushTimeMs = 0;
+    this.metrics.generationTimeMs = 0;
+    this.newChunksThisFrame = [];
     // Determine player location & active chunk
     const player = this.shell.getPlayer?.();
     if (player) {
@@ -145,6 +209,14 @@ export class WorldManager {
 
     // Phase 7: batched dirty flushing respecting global budget
     this.flushDirtyBatched();
+    // Post-update metrics
+    this.metrics.activeChunks = this.activeChunks.size;
+    if (this.metrics.dirtyTilesFlushed > 0) {
+      this.metrics.avgFlushBatchSize =
+        this.metrics.dirtyTilesFlushed === 0
+          ? 0
+          : this.metrics.dirtyTilesFlushed; // single batch approximation
+    }
   }
 
   // Compute pixel bounds spanning all active chunks (for camera clamping)
@@ -222,6 +294,7 @@ export class WorldManager {
       this.saveNow(chunkX, chunkY, chunk).finally(() => {
         chunk.destroy();
         this.activeChunks.delete(keyStr);
+        this.metrics.chunksUnloaded++;
       });
     });
   }
@@ -265,6 +338,7 @@ export class WorldManager {
         `diff=${serialized.diff.length}`,
         `active=${this.activeChunks.size}`
       );
+      this.metrics.savesPerformed++;
     } catch (e) {
       console.warn("Failed to save chunk diff", e);
     }
@@ -289,6 +363,7 @@ export class WorldManager {
       const chunk = this.activeChunks.get(key)!;
       const dirtyCount = (chunk as any).getDirtyCount?.() ?? 0;
       if (dirtyCount > 0) {
+        const t0 = performance.now?.() ?? Date.now();
         // Budget share heuristic: at least 1, otherwise proportional
         const share = Math.max(
           1,
@@ -296,6 +371,9 @@ export class WorldManager {
         );
         const allowance = Math.min(remaining, share);
         const used = (chunk as any).flushDirty?.(allowance) || 0;
+        const t1 = performance.now?.() ?? Date.now();
+        this.metrics.dirtyTilesFlushed += used;
+        this.metrics.totalDirtyFlushTimeMs += t1 - t0;
         remaining -= used;
         if (used > 0) this.dirtySpilloverCursor = key; // continue from here next frame
       }
@@ -309,5 +387,10 @@ export class WorldManager {
       total += (c as any).getDirtyCount?.() ?? 0;
     });
     return total;
+  }
+
+  // Public accessor for metrics snapshot
+  getMetrics() {
+    return { ...this.metrics };
   }
 }

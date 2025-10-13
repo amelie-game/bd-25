@@ -14,6 +14,7 @@ import { CollectMode } from "../modes/Collect";
 import { PlaceMode } from "../modes/Place";
 import { Pointer } from "../modules/Pointer";
 import { WorldManager } from "../modules/WorldManager";
+import { DevOverlay } from "../modules/DevOverlay";
 
 // ===================
 // === GAME SCENE  ===
@@ -33,6 +34,7 @@ export class GameScene extends Phaser.Scene {
   private hud!: HUDManager;
   private camera!: Camera;
   private player!: Player;
+  private devOverlay!: DevOverlay;
 
   constructor() {
     super("GameScene");
@@ -107,6 +109,7 @@ export class GameScene extends Phaser.Scene {
     this.camera = new Camera({ shell: this });
     // Ensure initial view is centered on the player
     this.camera.recenter();
+    this.devOverlay = new DevOverlay(this, this.worldManager);
     // Ensure HUD selection switches modes via selectMode and initialize mode
     this.selectMode(this.selectedMode);
 
@@ -125,6 +128,7 @@ export class GameScene extends Phaser.Scene {
     this.player.update(time, delta);
     // Camera auto-pan: let Camera decide when to pan based on player proximity to viewport edges
     this.camera.update(time, delta);
+    this.devOverlay.update(time);
   }
 
   destroy() {
