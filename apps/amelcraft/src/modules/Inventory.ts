@@ -1,5 +1,5 @@
 import { assets } from "../assets";
-import { Block, ObjectId, InventoryItem } from "../types";
+import { Block, ObjectId } from "../types";
 
 // Backward compatibility: existing HUD expects slots with numeric block ids.
 // We'll maintain an internal union but expose a getSlots() returning a

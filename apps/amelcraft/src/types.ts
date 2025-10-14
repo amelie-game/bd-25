@@ -79,11 +79,6 @@ export interface SerializedObjectEntry {
   k: ObjectId;
 }
 
-// Inventory union (block vs object). Blocks remain numeric tile ids; objects are atlas frame keys.
-export type InventoryItem =
-  | { kind: "block"; id: Block; count: number }
-  | { kind: "object"; id: ObjectId; count: number };
-
 export function isObjectId(v: unknown): v is ObjectId {
   return (
     typeof v === "string" &&
