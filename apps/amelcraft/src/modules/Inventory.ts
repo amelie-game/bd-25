@@ -107,4 +107,8 @@ export class Inventory {
   getObjects(): InventoryObjectSlot[] {
     return this.objects;
   }
+
+  getTotalObjectsCount(): number {
+    return this.objects.reduce((sum, s) => sum + s.count, 0);
+  }
 }

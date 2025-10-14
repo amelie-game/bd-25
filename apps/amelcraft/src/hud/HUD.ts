@@ -191,14 +191,17 @@ export class HudRoot extends HTMLElement {
     blockKeys,
     selected,
     onSelect,
+    flowersCount,
   }: {
     blockKeys: HudDropdown["options"];
     selected?: Option;
     onSelect: (value: Option) => void;
+    flowersCount?: number;
   }) {
     this.options = blockKeys;
     this.selected = selected ?? "collect";
     this.onSelect = onSelect;
+    (this as any)._flowersCount = flowersCount ?? 0;
     this.render();
   }
 
@@ -279,6 +282,16 @@ export class HudRoot extends HTMLElement {
     if (this.selected === "collect") collectOption.setAttribute("selected", "");
     collectOption.onclick = () => this.handleSelect("collect");
     controls.appendChild(collectOption);
+
+    // Aggregate flower count badge (hidden resource) if >0
+    const flowersCount = (this as any)._flowersCount as number | undefined;
+    if (flowersCount && flowersCount > 0) {
+      const badge = document.createElement("hud-badge");
+      badge.setAttribute("count", String(flowersCount));
+      // Smaller styling via inline scale
+      (badge.style as any).transform = "scale(0.85)";
+      collectOption.querySelector("button")?.appendChild(badge);
+    }
   }
 
   injectStyles() {

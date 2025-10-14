@@ -91,6 +91,7 @@ export class GameScene extends Phaser.Scene {
     this.inventory = new Inventory();
     this.hud = new HUDManager({
       inventory: this.inventory.getBlocks(),
+      objects: this.inventory.getObjects(),
       selectedMode: this.selectedMode,
       shell: this,
       onSelect: (mode) => {
@@ -168,7 +169,11 @@ export class GameScene extends Phaser.Scene {
   // Mode orchestration ------------------------------------------------------
   selectMode(mode: Option) {
     this.selectedMode = mode;
-    this.hud.update(this.inventory.getBlocks(), this.selectedMode);
+    this.hud.update(
+      this.inventory.getBlocks(),
+      this.selectedMode,
+      this.inventory.getObjects()
+    );
     this.ensureActiveMode();
   }
 

@@ -223,9 +223,9 @@ Edge cases (manual QA):
 5. [x] Rendering for objects (depth ordering) & cleanup on destroy
 6. [x] WorldManager global helpers (get/remove object at global coords)
 7. [x] Modify CollectMode to prioritize object collection
-8. [ ] Refactor Inventory for union item kind (block/object) & stacking rules
-9. [ ] (Deferred) HUD representation / crafting UI for flowers (not shown in main bar)
-10. [ ] Persistence wiring (save & load objects field) – verify saves include removals
+8. [x] Refactor Inventory for union item kind (block/object) & stacking rules
+9. [x] Minimal HUD integration (aggregate flower count badge on collect icon; full crafting UI deferred)
+10. [x] Persistence wiring (save & load objects field) – verify saves include removals
 11. [ ] Tests: generation density + biome restriction
 12. [ ] Tests: collection flow & persistence
 13. [ ] Documentation updates (this file – keep in sync if design shifts)
