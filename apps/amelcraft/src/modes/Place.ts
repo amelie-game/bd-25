@@ -94,7 +94,7 @@ export class PlaceMode {
       if (remaining === 0) this.shell.selectMode("move");
       this.shell
         .getHud()
-        .update(this.shell.getInventory().getSlots(), this.shell.getMode());
+        .update(this.shell.getInventory().getBlocks(), this.shell.getMode());
     }
   }
 }

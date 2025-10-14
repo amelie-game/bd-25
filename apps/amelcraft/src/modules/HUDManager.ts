@@ -1,6 +1,6 @@
 import { assets } from "../assets";
 import type { Option } from "../types";
-import { InventorySlot } from "./Inventory";
+import { InventoryBlockSlot } from "./Inventory";
 import { HudRoot } from "../hud/HUD.js";
 import { GameScene } from "../scenes/GameScene";
 
@@ -10,7 +10,7 @@ type Shell = GameScene;
 
 type Params = {
   shell: Shell;
-  inventory: InventorySlot[];
+  inventory: InventoryBlockSlot[];
   selectedMode: Option;
   onSelect: (val: Option) => void;
 };
@@ -33,7 +33,7 @@ export class HUDManager {
     this.update(inventory, selectedMode);
   }
 
-  update(inventory: InventorySlot[], selectedMode: Option) {
+  update(inventory: InventoryBlockSlot[], selectedMode: Option) {
     const blockKeys = inventory.map((slot) => {
       // Try to find the sprite name for this block index
       const spriteName = Object.keys(assets.blocks.sprites).find(

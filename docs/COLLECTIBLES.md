@@ -82,7 +82,7 @@ Algorithm:
 Constants (add to `constants.ts` or a new config file):
 ```ts
 export const FLOWER_DENSITY_DIVISOR = 140;  // tweak for desired density
-export const OBJECT_DEPTH = 5;              // draw order (ground=0, objects=5, player>5, highlight=10)
+export const OBJECT_DEPTH = 0.5;            // draw order (ground=0, objects=0.5, player=1, highlight=10)
 ```
 
 Determinism: Use the existing per-chunk RNG (`mulberry32(seed)`) so flower placement is predictable. Because we are *persisting* the full object list, determinism is nice but not strictly required for correctness now; it *will* matter if/when we switch to diff-of-removals.
@@ -142,17 +142,15 @@ Collection time: unchanged (1s). Possible future variation per object.
 ## 8. Inventory & HUD Adjustments
 
 Inventory changes:
-* Store entries as `InventoryItem` union.
-* Add helper predicates:
-  - `isSameItem(a,b)` (same kind + id).
-* Provide `addBlock(blockId)` and `addObject(objectId)` thin wrappers or a generic `addItem(item)`.
+* Internally store entries as `InventoryItem` union (already partially implemented).
+* Expose existing block-centric APIs unchanged for now.
+* Flowers (object items) are collected and stacked but are NOT rendered in the block HUD bar – they remain hidden resources.
 
-HUD changes (minimal viable):
-* When mapping slots to UI data, if `kind==='block'` keep existing sprite discovery.
-* If `kind==='object'`, provide atlas key `objects` and frame name = `id` so renderer can draw it (requires HUD component update to accept a `sheet` + `frame` pair OR a generic descriptor).
-* If HUD currently assumes numeric block ID, extend its data contract (e.g., include `category: 'block' | 'object'`).
+HUD decision (updated):
+* Do not add flower icons to the primary block slot strip to avoid clutter.
+* Future interaction: a crafting / combination UI (not yet implemented) will allow combining a flower with sand blocks to produce colored sand variants. This will consume one flower per batch (design TBD) and tint or swap sand block tiles.
 
-Backward compatibility: Accept existing block-only structures; new properties optional. Fallback display (text label) if rendering path not yet implemented.
+Backward compatibility: Since HUD ignores object entries, no immediate visual migration needed. Later, a secondary panel or context menu can expose flower counts when the combination feature is introduced.
 
 ---
 
@@ -209,7 +207,8 @@ Edge cases (manual QA):
 * Object-specific animations / particle effects on collection.
 * Regrowth timers or seasonal generation refresh.
 * Deterministic baseline + diff-of-removals for compact saves.
-* Object metadata (durability, growth stage) via `SerializedTileMetaEntry` or a parallel `objectsMeta` extension.
+* Object metadata (durability, growth s
+* tage) via `SerializedTileMetaEntry` or a parallel `objectsMeta` extension.
 * Pathfinding collision if certain objects become blocking.
 
 ---
@@ -222,11 +221,11 @@ Edge cases (manual QA):
 3. [x] Add object container & API to World (add/get/remove, serialize/apply)
 4. [x] Procedural flower generation (grass biome only) with density constant
 5. [x] Rendering for objects (depth ordering) & cleanup on destroy
-6. [ ] WorldManager global helpers (get/remove object at global coords)
-7. [ ] Modify CollectMode to prioritize object collection
+6. [x] WorldManager global helpers (get/remove object at global coords)
+7. [x] Modify CollectMode to prioritize object collection
 8. [ ] Refactor Inventory for union item kind (block/object) & stacking rules
-9. [ ] HUD adaptations for object items (sprite frame rendering)
-10. [ ] Persistence wiring (save & load objects field)
+9. [ ] (Deferred) HUD representation / crafting UI for flowers (not shown in main bar)
+10. [ ] Persistence wiring (save & load objects field) – verify saves include removals
 11. [ ] Tests: generation density + biome restriction
 12. [ ] Tests: collection flow & persistence
 13. [ ] Documentation updates (this file – keep in sync if design shifts)
@@ -242,6 +241,7 @@ Edge cases (manual QA):
 | Inventory / HUD break due to new union type | Introduce adapters; keep old code paths until fully migrated. |
 | Save incompatibility | Optional `objects` field guarded by presence checks. |
 | Visual clutter / performance with too many objects | Density constant tweak; future culling if needed. |
+| Hidden resource confusion (flowers not visible in HUD) | Add future crafting/combo panel listing flower counts. |
 | Future diff optimization complexity | Keep simple full snapshot now; encapsulate serialization for easy swap later. |
 
 ---
@@ -253,7 +253,7 @@ Edge cases (manual QA):
 | Add new object kind | Append frame to objects atlas + extend `ObjectId` union. |
 | Force re-gen (dev) | Clear IndexedDB chunk keys or change world seed. |
 | Adjust density | `FLOWER_DENSITY_DIVISOR` constant. |
-| Rendering order | `OBJECT_DEPTH` constant. |
+| Rendering order | `OBJECT_DEPTH` constant (objects 0.5 < player 1). |
 
 ---
 

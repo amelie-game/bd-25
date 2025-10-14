@@ -196,6 +196,24 @@ export class CollectMode {
     const GROUND = assets.blocks.sprites.Brown;
     const SNOW = assets.blocks.sprites.Snow;
     const SAND = assets.blocks.sprites.Yellow;
+    // Step 7: Object-first collection priority
+    const wm = this.shell.getWorldManager();
+    const objectAt = wm.getObjectAtGlobal(tx, ty);
+
+    if (objectAt) {
+      // Attempt to add to inventory as object
+      const added = this.shell.getInventory().addObject(objectAt.id);
+
+      if (added) {
+        wm.removeObjectAtGlobal(tx, ty);
+        this.shell
+          .getHud()
+          .update(this.shell.getInventory().getBlocks(), this.shell.getMode());
+
+        return; // do not mutate tile when object collected
+      }
+      // If inventory full for this object, fall through to tile logic (optional policy)
+    }
     const tile = this.shell.getWorldManager().getTileAtGlobal(tx, ty);
     if (!tile) return;
 
@@ -203,7 +221,7 @@ export class CollectMode {
     if (this.shell.getInventory().add(toBlock(tile.index))) {
       this.shell
         .getHud()
-        .update(this.shell.getInventory().getSlots(), this.shell.getMode());
+        .update(this.shell.getInventory().getBlocks(), this.shell.getMode());
     }
 
     if (tile.index === GRASS) {
