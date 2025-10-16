@@ -38,6 +38,16 @@ export class DevOverlay {
 
   private forceUpdate() {
     const m = this.wm.getMetrics();
+    // Compute aggregate flower/object count across active chunks (optional collectible diagnostics)
+    let totalObjects = 0;
+    // Access private activeChunks via cast (dev overlay internal use only)
+    const wmAny = this.wm as any;
+    const activeChunks: Map<string, any> = wmAny.activeChunks;
+    if (activeChunks) {
+      activeChunks.forEach((chunk) => {
+        if (chunk?.getObjectsCount) totalObjects += chunk.getObjectsCount();
+      });
+    }
     const lines = [
       "=== Perf ===",
       `frame: ${m.frame}`,
@@ -47,6 +57,7 @@ export class DevOverlay {
       `flush ms: ${m.totalDirtyFlushTimeMs.toFixed(2)}`,
       `saves: ${m.savesPerformed}`,
       `budget: batch=${m.avgFlushBatchSize}`,
+      `flowers: ${totalObjects}`,
     ];
     this.text?.setText(lines.join("\n"));
   }

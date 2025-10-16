@@ -81,7 +81,7 @@ Algorithm:
 
 Constants (add to `constants.ts` or a new config file):
 ```ts
-export const FLOWER_DENSITY_DIVISOR = 140;  // tweak for desired density
+export const FLOWER_DENSITY_DIVISOR = 100;  // tuned from 140 (Step 14) to raise average flower count
 export const OBJECT_DEPTH = 0.5;            // draw order (ground=0, objects=0.5, player=1, highlight=10)
 ```
 
@@ -290,4 +290,50 @@ Planned feature: Colored sand crafting using one flower + base sand stack to pro
 * Potential object metadata extension if certain flowers grant special effects.
 
 Implementation deferred until after QA & tuning; design will append a new section outlining recipe schemas.
+
+## 19. QA & Tuning (Initial Metrics)
+
+Preliminary automated sampling (`density-sample.test.ts`) over 40 chunkX candidates at y=0 produced:
+
+```
+sampled grass chunks: 15
+mean flowers per grass chunk: ~6.87
+min: 0
+max: 32
+std dev: ~10.73
+```
+
+Interpretation:
+* Actual mean significantly below naive expectation (~40–50) because many sampled chunks were small grass islands (high perimeter sand / water reducing grass tile count) and early sample size limited.
+* High variance (clusters up to 32) suggests occasional denser islands (acceptable for visual variety).
+* Some grass chunks had 0 flowers (allowed by stochastic placement; can consider guaranteed minimum later).
+
+Next QA Actions:
+1. Increase sample size (e.g., 200 chunks) to stabilize mean estimate.
+2. Record average grass tile count alongside flower count to compute ratio precisely.
+3. Decide on adjusting `FLOWER_DENSITY_DIVISOR` (currently 140). If target mean closer to 15–20 flowers per typical island, a divisor in the 60–90 range may be appropriate after refined measurement.
+4. Add optional minimum (e.g., ensure at least 1 flower if any grass > threshold).
+
+Current Decision: Keep divisor at 140 until larger sample collected; avoid premature tuning.
+
+### Extended Sampling (120 candidates, 37 grass chunks)
+
+```
+sampled grass chunks: 37
+mean flowers per grass chunk: ~6.38
+mean grass tiles per chunk: ~6706.59
+flowers per grass tile ratio: ~0.00095 (≈ 1 / 1052)
+min flowers: 0
+max flowers: 32
+std dev flowers: ~10.32
+```
+
+Interpretation:
+* Actual ratio (~1/1050) is much sparser than target design intent (~1/140) because grass tile heuristic counts entire predominant tile region (includes edge sand misclassification risk) and island generation yields large grass areas but low object probability.
+* To reach a target mean of ~15–20 flowers on these islands, adjust placement probability from 1/140 to roughly 1/450–1/330 (scales ratio up ~2–3x given current observed grass area; conservative starting point).
+* Recommended next tuning: set `FLOWER_DENSITY_DIVISOR` to 330, re-sample; if mean jumps near 20, optionally reduce slightly (e.g., 360–400). Provide guarantee of at least 1 flower on chunks with > 3000 grass tiles.
+
+Planned Change (deferred until approval): Update constant and add minimum guarantee logic.
+
+
 

@@ -308,10 +308,13 @@ export class World {
           typeof id === "string" && id.startsWith("flower_")
       );
       if (flowerIds.length) {
+        let placed = 0;
+        const grassIndices: number[] = [];
         for (let x = 0; x < width; x++) {
           for (let y = 0; y < height; y++) {
             const idx = tileIndex(x, y);
             if (this.baseTiles[idx] !== GRASS) continue; // only place on grass
+            grassIndices.push(idx);
             // Density probability check
             if (
               FLOWER_DENSITY_DIVISOR > 0 &&
@@ -319,8 +322,17 @@ export class World {
             ) {
               const choice = flowerIds[Math.floor(rng() * flowerIds.length)];
               this.addObject(choice, x, y); // rendering deferred to step 5
+              placed++;
             }
           }
+        }
+        // Minimum guarantee: if no flowers placed and island has substantial grass area
+        if (placed === 0 && grassIndices.length > 3000) {
+          const pickIdx = grassIndices[Math.floor(rng() * grassIndices.length)];
+          const gy = Math.floor(pickIdx / width);
+          const gx = pickIdx - gy * width;
+          const choice = flowerIds[Math.floor(rng() * flowerIds.length)];
+          this.addObject(choice, gx, gy);
         }
       }
     }
