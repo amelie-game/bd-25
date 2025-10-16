@@ -36,7 +36,7 @@ Non-goals (for this first pass): regrowth, tool requirements, animation, determi
 ```ts
 // Object identity (matches frame names in objects atlas)
 type ObjectId =
-  | 'flower_red' | 'flower_cyan' | 'flower_yellow'
+  | 'flower_red' | 'flower_cyan'
   | 'flower_turquoise' | 'flower_blue' | 'flower_purple' | 'flower_pink'
   // (rocks reserved for later)
   ;
@@ -283,13 +283,13 @@ Pending manual QA (Step 14): visual overlap, player movement during collection, 
 
 ## 18. Future Crafting Hook
 
-Planned feature: Colored sand crafting using one flower + base sand stack to produce tinted sand block variants. Will introduce:
-* Crafting panel UI listing flower counts (currently hidden except for aggregate badge).
-* Recipe system mapping (flower color, sand) -> colored sand block id.
-* Inventory consumption of 1 flower per N colored sand produced (ratio TBD: likely 1:8 or 1:16).
-* Potential object metadata extension if certain flowers grant special effects.
+Planned feature (see `CRAFTING.md`): Colored sand crafting using exactly one flower + up to 10 Yellow sand blocks producing a one-for-one number of tinted sand blocks (no multiplier). Will introduce:
+* Crafting modal (opened via minimal HUD option) listing available flower counts.
+* Deterministic recipe mapping (red: 50/50 split; others 100% single color; turquoise maps to cyan until a dark variant exists).
+* Atomic transaction: consumes inputs only if outputs fit in inventory; otherwise aborted.
+* Potential object metadata extension if certain flowers later grant special effects.
 
-Implementation deferred until after QA & tuning; design will append a new section outlining recipe schemas.
+Implementation deferred until after any additional QA & tuning; recipe data and execution flow defined in `CRAFTING.md`.
 
 ## 19. QA & Tuning (Initial Metrics)
 
