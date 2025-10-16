@@ -1,7 +1,7 @@
 ## Collectible Objects (Flowers & Future Resources)
 
 ### Status
-Planned – implementation not yet merged. This document is the authoritative design reference while adding flower (and later rock) collectibles to the world.
+In Progress – Steps 1–12 implemented & tested (types, persistence, generation, rendering, object-first collection, HUD badge, density & biome tests, collection & persistence tests). Remaining: Step 13 (docs sync – this update), Step 14 (manual QA & tuning), future crafting & enhancements.
 
 ---
 
@@ -226,9 +226,9 @@ Edge cases (manual QA):
 8. [x] Refactor Inventory for union item kind (block/object) & stacking rules
 9. [x] Minimal HUD integration (aggregate flower count badge on collect icon; full crafting UI deferred)
 10. [x] Persistence wiring (save & load objects field) – verify saves include removals
-11. [ ] Tests: generation density + biome restriction
-12. [ ] Tests: collection flow & persistence
-13. [ ] Documentation updates (this file – keep in sync if design shifts)
+11. [x] Tests: generation density + biome restriction
+12. [x] Tests: collection flow & persistence
+13. [x] Documentation updates (this file – keep in sync if design shifts)
 14. [ ] Manual QA & tuning (flower density, visual overlap)
 ```
 
@@ -266,3 +266,28 @@ Edge cases (manual QA):
 ---
 
 End of design.
+
+## 17. Current Test Coverage (Step 13)
+
+Implemented tests exercising core object lifecycle:
+
+1. `generation.test.ts` – Base tile generation determinism (seed + coords).
+2. `biomes.test.ts` – Deterministic biome assignment; desert palette validation.
+3. `object-generation.test.ts` – Flower density bounds in grass biome; absence in desert & snow biomes.
+4. `object-persistence.test.ts` – Removal excludes object from serialized diff and reload.
+5. `object-collection.test.ts` – Simulated collection: inventory increment, object removal, persistence of absence.
+6. `persistence.test.ts` – Tile diff serialization roundtrip.
+7. `dirty-flush.test.ts` / `metrics.test.ts` – Performance & dirty flush instrumentation sanity.
+
+Pending manual QA (Step 14): visual overlap, player movement during collection, multi-flower rapid collection, density tuning.
+
+## 18. Future Crafting Hook
+
+Planned feature: Colored sand crafting using one flower + base sand stack to produce tinted sand block variants. Will introduce:
+* Crafting panel UI listing flower counts (currently hidden except for aggregate badge).
+* Recipe system mapping (flower color, sand) -> colored sand block id.
+* Inventory consumption of 1 flower per N colored sand produced (ratio TBD: likely 1:8 or 1:16).
+* Potential object metadata extension if certain flowers grant special effects.
+
+Implementation deferred until after QA & tuning; design will append a new section outlining recipe schemas.
+
