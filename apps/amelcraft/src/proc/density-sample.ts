@@ -8,8 +8,32 @@ import { WorldManager } from "../modules/WorldManager";
 
 // Minimal scene stub for headless sampling (copies pattern from existing tests)
 class HeadlessScene {
-  make = { tilemap: (_: any) => ({ addTilesetImage: () => ({ firstgid: 1 }), createBlankLayer: () => ({ setDepth: () => {}, setPosition: () => {}, putTileAt: () => {} }) }) };
-  add = { graphics: () => ({ setDepth: () => {}, destroy: () => {}, clear: () => {}, lineStyle: () => {}, fillStyle: () => {}, strokeRect: () => {}, fillRect: () => {} }), image: () => ({ setDepth: () => {}, setOrigin: () => {}, destroy: () => {} }) };
+  make = {
+    tilemap: (_: any) => ({
+      addTilesetImage: () => ({ firstgid: 1 }),
+      createBlankLayer: () => ({
+        setDepth: () => {},
+        setPosition: () => {},
+        putTileAt: () => {},
+      }),
+    }),
+  };
+  add = {
+    graphics: () => ({
+      setDepth: () => {},
+      destroy: () => {},
+      clear: () => {},
+      lineStyle: () => {},
+      fillStyle: () => {},
+      strokeRect: () => {},
+      fillRect: () => {},
+    }),
+    image: () => ({
+      setDepth: () => {},
+      setOrigin: () => {},
+      destroy: () => {},
+    }),
+  };
 }
 
 export interface DensitySampleResult {
@@ -25,7 +49,11 @@ export interface DensitySampleResult {
   flowersPerGrassRatio: number; // meanFlowers / meanGrassTiles
 }
 
-export function sampleFlowerDensity(seed: string | number, count = 50, y = 0): DensitySampleResult {
+export function sampleFlowerDensity(
+  seed: string | number,
+  count = 50,
+  y = 0
+): DensitySampleResult {
   const scene = new HeadlessScene() as any;
   const wm = new WorldManager(scene, seed, new InMemoryChunkStore());
   const counts: number[] = [];
@@ -52,8 +80,11 @@ export function sampleFlowerDensity(seed: string | number, count = 50, y = 0): D
     sampled++;
   }
   const mean = counts.reduce((s, v) => s + v, 0) / (counts.length || 1);
-  const meanGrass = grassTileCounts.reduce((s, v) => s + v, 0) / (grassTileCounts.length || 1);
-  const variance = counts.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / (counts.length || 1);
+  const meanGrass =
+    grassTileCounts.reduce((s, v) => s + v, 0) / (grassTileCounts.length || 1);
+  const variance =
+    counts.reduce((s, v) => s + Math.pow(v - mean, 2), 0) /
+    (counts.length || 1);
   const stdDev = Math.sqrt(variance);
   return {
     seed,
@@ -73,7 +104,10 @@ export function sampleFlowerDensity(seed: string | number, count = 50, y = 0): D
 // @ts-ignore
 if (typeof window !== "undefined") {
   // @ts-ignore
-  (window as any).AMEL_SAMPLE_FLOWERS = (seed: string | number = "local-seed", count = 50) => {
+  (window as any).AMEL_SAMPLE_FLOWERS = (
+    seed: string | number = "local-seed",
+    count = 50
+  ) => {
     return sampleFlowerDensity(seed, count);
   };
 }
