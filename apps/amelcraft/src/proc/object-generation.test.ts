@@ -62,15 +62,24 @@ describe("Flower object generation (Step 11)", () => {
     const seed = hashString32("flower-density-seed");
     // Find a grass biome chunk (deterministic pick)
     let found = false;
-    let targetCx = 0, targetCy = 0;
+    let targetCx = 0,
+      targetCy = 0;
     for (let cx = 0; cx < 50 && !found; cx++) {
       const biome = pickChunkBiome(seed, cx, 0);
       if (biome === "grass") {
-        found = true; targetCx = cx; targetCy = 0;
+        found = true;
+        targetCx = cx;
+        targetCy = 0;
       }
     }
     expect(found).toBe(true);
-    const w = new World(new FakeScene() as any, seed, undefined, targetCx, targetCy);
+    const w = new World(
+      new FakeScene() as any,
+      seed,
+      undefined,
+      targetCx,
+      targetCy
+    );
     const flowerCount = getObjectsCount(w);
     // Expected mean ~ grassTiles / FLOWER_DENSITY_DIVISOR (binomial). Use heuristic grass tile count.
     const grassTiles = getGrassTileCount(w);
@@ -85,26 +94,48 @@ describe("Flower object generation (Step 11)", () => {
   it("does not place flowers in desert biome chunks", () => {
     const seed = hashString32("flower-biome-restrict-seed");
     let found = false;
-    let targetCx = 0, targetCy = 0;
+    let targetCx = 0,
+      targetCy = 0;
     for (let cx = 0; cx < 80 && !found; cx++) {
       const biome = pickChunkBiome(seed, cx, 5); // vary y to improve distribution
-      if (biome === "desert") { found = true; targetCx = cx; targetCy = 5; }
+      if (biome === "desert") {
+        found = true;
+        targetCx = cx;
+        targetCy = 5;
+      }
     }
     expect(found).toBe(true);
-    const w = new World(new FakeScene() as any, seed, undefined, targetCx, targetCy);
+    const w = new World(
+      new FakeScene() as any,
+      seed,
+      undefined,
+      targetCx,
+      targetCy
+    );
     expect(getObjectsCount(w)).toBe(0);
   });
 
   it("does not place flowers in snow biome chunks", () => {
     const seed = hashString32("flower-biome-restrict-seed-2");
     let found = false;
-    let targetCx = 0, targetCy = 0;
+    let targetCx = 0,
+      targetCy = 0;
     for (let cx = 0; cx < 80 && !found; cx++) {
       const biome = pickChunkBiome(seed, cx, -7);
-      if (biome === "snow") { found = true; targetCx = cx; targetCy = -7; }
+      if (biome === "snow") {
+        found = true;
+        targetCx = cx;
+        targetCy = -7;
+      }
     }
     expect(found).toBe(true);
-    const w = new World(new FakeScene() as any, seed, undefined, targetCx, targetCy);
+    const w = new World(
+      new FakeScene() as any,
+      seed,
+      undefined,
+      targetCx,
+      targetCy
+    );
     expect(getObjectsCount(w)).toBe(0);
   });
 });
