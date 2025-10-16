@@ -192,7 +192,7 @@ Edge Cases:
 ## 13. Implementation Checklist
 
 ```
-1. [ ] Extend Inventory (removeBlock, removeObject, addMany, hasObject, count helpers)
+1. [x] Extend Inventory (removeBlock, removeObject, addMany, hasObject, count helpers)
 2. [ ] Add 'craft' to Option union & HUD icon
 3. [ ] Create Crafting.ts (recipes, simulate, execute)
 4. [ ] Implement <craft-modal> custom element
