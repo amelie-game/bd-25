@@ -198,8 +198,8 @@ Edge Cases:
 4. [x] Implement <craft-modal> custom element
 5. [x] Integrate HUD option toggling modal
 6. [x] Wire CraftResult HUD refresh workflow
-7. [ ] Add unit tests for crafting logic
-8. [ ] Update COLLECTIBLES.md (link to crafting doc) or cross-reference
+7. [x] Add unit tests for crafting logic
+8. [x] Update COLLECTIBLES.md (link to crafting doc) or cross-reference
 9. [ ] Optional: toast feedback on success/failure
 ```
 

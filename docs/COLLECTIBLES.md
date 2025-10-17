@@ -1,7 +1,9 @@
 ## Collectible Objects (Flowers & Future Resources)
 
 ### Status
-In Progress – Steps 1–12 implemented & tested (types, persistence, generation, rendering, object-first collection, HUD badge, density & biome tests, collection & persistence tests). Remaining: Step 13 (docs sync – this update), Step 14 (manual QA & tuning), future crafting & enhancements.
+In Progress – Steps 1–12 implemented & tested (types, persistence, generation, rendering, object-first collection, HUD badge, density & biome tests, collection & persistence tests). This update adds cross-references to the colored sand crafting system. Remaining: Step 14 (manual QA & tuning), future crafting & enhancements.
+
+Quick Links: [Colored Sand Crafting System](./CRAFTING.md) – see design & recipes.
 
 ---
 
@@ -283,7 +285,7 @@ Pending manual QA (Step 14): visual overlap, player movement during collection, 
 
 ## 18. Future Crafting Hook
 
-Planned feature (see `CRAFTING.md`): Colored sand crafting using exactly one flower + up to 10 Yellow sand blocks producing a one-for-one number of tinted sand blocks (no multiplier). Will introduce:
+Planned feature (see [CRAFTING.md](./CRAFTING.md)): Colored sand crafting using exactly one flower + up to 10 Yellow sand blocks producing a one-for-one number of tinted sand blocks (no multiplier). Will introduce:
 * Crafting modal (opened via minimal HUD option) listing available flower counts.
 * Deterministic recipe mapping (red: 50/50 split; others 100% single color; turquoise maps to cyan until a dark variant exists).
 * Atomic transaction: consumes inputs only if outputs fit in inventory; otherwise aborted.
