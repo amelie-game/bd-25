@@ -59,6 +59,11 @@ export class WorldManager {
     }
   }
 
+  // Expose world seed for other systems (e.g., inventory persistence scoping)
+  getSeed() {
+    return this.seed;
+  }
+
   // Temporary debug flag (toggle in console: window.AMEL_DEBUG_CHUNKS = true/false)
   private debugEnabled(): boolean {
     // @ts-ignore

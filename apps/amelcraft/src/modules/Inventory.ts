@@ -13,6 +13,13 @@ export class Inventory {
 
   private blocks: InventoryBlockSlot[] = [];
   private objects: InventoryObjectSlot[] = [];
+  // Persistence -------------------------------------------------------------
+  private storageKey: string | null = null;
+  private saveDelayMs = 500;
+  private saveTimer: number | null = null;
+  private dirty = false;
+  private autosaveEnabled = false;
+  private static SERIALIZATION_VERSION = 1;
 
   constructor({
     stackSize = 99,
@@ -44,6 +51,7 @@ export class Inventory {
       let slot = this.blocks[idx];
       if (slot.count < this.stackSize) {
         slot.count++;
+        this.markDirty();
 
         return true;
       } else {
@@ -54,6 +62,7 @@ export class Inventory {
     // Add new slot if space
     if (this.blocks.length < this.slotSize) {
       this.blocks.push({ block, count: 1 });
+      this.markDirty();
 
       return true;
     }
@@ -69,6 +78,7 @@ export class Inventory {
       if (slot.count <= 0) {
         this.blocks.splice(idx, 1);
       }
+      this.markDirty();
 
       return slot.count;
     }
@@ -94,6 +104,7 @@ export class Inventory {
     if (slot.count < count) return false; // insufficient
     slot.count -= count;
     if (slot.count <= 0) this.blocks.splice(idx, 1);
+    this.markDirty();
     return true;
   }
 
@@ -106,12 +117,14 @@ export class Inventory {
       const slot = this.blocks[idx];
       if (slot.count + count > this.stackSize) return false; // would overflow
       slot.count += count;
+      this.markDirty();
       return true;
     }
     // Need a new slot
     if (this.blocks.length >= this.slotSize) return false; // no slot space
     if (count > this.stackSize) return false; // cannot exceed stack size
     this.blocks.push({ block, count });
+    this.markDirty();
     return true;
   }
 
@@ -146,6 +159,7 @@ export class Inventory {
       const slot = this.objects[idx];
       if (slot.count < this.stackSize) {
         slot.count++;
+        this.markDirty();
         return true;
       }
       return false; // stack full
@@ -153,6 +167,7 @@ export class Inventory {
 
     if (this.objects.length < this.slotSize) {
       this.objects.push({ object: id, count: 1 });
+      this.markDirty();
       return true;
     }
     return false; // inventory full
@@ -184,10 +199,103 @@ export class Inventory {
     if (slot.count < count) return false; // insufficient
     slot.count -= count;
     if (slot.count <= 0) this.objects.splice(idx, 1);
+     this.markDirty();
     return true;
   }
 
   getTotalObjectsCount(): number {
     return this.objects.reduce((sum, s) => sum + s.count, 0);
+  }
+
+  // =============================
+  // Persistence API
+  // =============================
+  /** Enable automatic persistence to localStorage scoped by seed. */
+  enablePersistence(seed: string | number, saveDelayMs: number = 500) {
+    this.storageKey = `amelcraft:inventory:${seed}`;
+    this.saveDelayMs = saveDelayMs;
+    this.autosaveEnabled = true;
+    // Attempt load
+    try {
+      const raw = window.localStorage.getItem(this.storageKey);
+      if (raw) {
+        const data = JSON.parse(raw);
+        this.applySerialized(data);
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("Inventory persistence load failed", e);
+    }
+  }
+
+  /** Serialize current inventory to plain JSON suitable for storage. */
+  serialize() {
+    const blocks = this.blocks.map((s) => ({ b: s.block, c: s.count }));
+    const objects = this.objects.map((s) => ({ o: s.object, c: s.count }));
+    return {
+      version: Inventory.SERIALIZATION_VERSION,
+      stackSize: this.stackSize,
+      slotSize: this.slotSize,
+      blocks,
+      objects: objects.length ? objects : undefined,
+      ts: Date.now(),
+    };
+  }
+
+  /** Apply serialized data (clears existing state). */
+  private applySerialized(data: any) {
+    if (!data || typeof data !== "object") return;
+    // Basic version gate (allow future migrations)
+    if (typeof data.version !== "number") return;
+    this.blocks = [];
+    this.objects = [];
+    if (Array.isArray(data.blocks)) {
+      for (const entry of data.blocks) {
+        if (!entry || typeof entry.b !== "number" || typeof entry.c !== "number") continue;
+        if (entry.c <= 0) continue;
+        this.blocks.push({ block: entry.b as Block, count: entry.c });
+      }
+    }
+    if (Array.isArray(data.objects)) {
+      for (const entry of data.objects) {
+        if (!entry || typeof entry.o !== "string" || typeof entry.c !== "number") continue;
+        if (entry.c <= 0) continue;
+        this.objects.push({ object: entry.o as ObjectId, count: entry.c });
+      }
+    }
+    // After load, mark clean (avoid immediate save)
+    this.dirty = false;
+  }
+
+  private markDirty() {
+    this.dirty = true;
+    if (this.autosaveEnabled) this.scheduleSave();
+  }
+
+  private scheduleSave() {
+    if (!this.storageKey) return;
+    if (this.saveTimer) window.clearTimeout(this.saveTimer);
+    this.saveTimer = window.setTimeout(() => this.saveNow(), this.saveDelayMs);
+  }
+
+  /** Force immediate save if dirty. */
+  saveNow() {
+    if (!this.storageKey) return;
+    if (!this.dirty) return; // skip if nothing changed
+    try {
+      const payload = this.serialize();
+      window.localStorage.setItem(this.storageKey, JSON.stringify(payload));
+      this.dirty = false;
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("Inventory persistence save failed", e);
+    }
+  }
+
+  destroy() {
+    if (this.saveTimer) window.clearTimeout(this.saveTimer);
+    this.saveTimer = null;
+    // Best-effort final save
+    this.saveNow();
   }
 }
