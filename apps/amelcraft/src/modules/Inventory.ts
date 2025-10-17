@@ -199,7 +199,7 @@ export class Inventory {
     if (slot.count < count) return false; // insufficient
     slot.count -= count;
     if (slot.count <= 0) this.objects.splice(idx, 1);
-     this.markDirty();
+    this.markDirty();
     return true;
   }
 
@@ -251,14 +251,24 @@ export class Inventory {
     this.objects = [];
     if (Array.isArray(data.blocks)) {
       for (const entry of data.blocks) {
-        if (!entry || typeof entry.b !== "number" || typeof entry.c !== "number") continue;
+        if (
+          !entry ||
+          typeof entry.b !== "number" ||
+          typeof entry.c !== "number"
+        )
+          continue;
         if (entry.c <= 0) continue;
         this.blocks.push({ block: entry.b as Block, count: entry.c });
       }
     }
     if (Array.isArray(data.objects)) {
       for (const entry of data.objects) {
-        if (!entry || typeof entry.o !== "string" || typeof entry.c !== "number") continue;
+        if (
+          !entry ||
+          typeof entry.o !== "string" ||
+          typeof entry.c !== "number"
+        )
+          continue;
         if (entry.c <= 0) continue;
         this.objects.push({ object: entry.o as ObjectId, count: entry.c });
       }

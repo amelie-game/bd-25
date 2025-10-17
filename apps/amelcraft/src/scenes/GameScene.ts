@@ -88,9 +88,9 @@ export class GameScene extends Phaser.Scene {
 
     this.pointer = new Pointer(this);
     this.worldManager = new WorldManager(this);
-  this.inventory = new Inventory();
-  // Enable inventory persistence scoped by world seed (same as chunks)
-  this.inventory.enablePersistence(this.worldManager.getSeed());
+    this.inventory = new Inventory();
+    // Enable inventory persistence scoped by world seed (same as chunks)
+    this.inventory.enablePersistence(this.worldManager.getSeed());
     this.hud = new HUDManager({
       inventory: this.inventory.getBlocks(),
       objects: this.inventory.getObjects(),
