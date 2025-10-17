@@ -38,6 +38,13 @@ export class Player {
   };
   private lastDirection: Direction = "down";
   private moveSpeed = Player.MOVE_SPEED; // pixels per second (from PoC)
+  // Persistence ------------------------------------------------------------
+  private storageKey: string | null = null;
+  private dirty = false;
+  private saveTimer: number | null = null;
+  private saveDelayMs = 750;
+  private autosaveEnabled = false;
+  private static SERIALIZATION_VERSION = 1;
 
   constructor({ shell, start }: Params) {
     this.shell = shell;
@@ -69,6 +76,80 @@ export class Player {
       });
     }
     this.playAnim("idle", "down", true);
+  }
+
+  // =============================
+  // Persistence API
+  // =============================
+  enablePersistence(seed: string | number, saveDelayMs: number = 750) {
+    this.storageKey = `amelcraft:player:${seed}`;
+    this.saveDelayMs = saveDelayMs;
+    this.autosaveEnabled = true;
+    // Attempt load and apply before first camera recenter
+    try {
+      const raw = window.localStorage.getItem(this.storageKey);
+      if (raw) {
+        const data = JSON.parse(raw);
+        this.applySerialized(data);
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("Player persistence load failed", e);
+    }
+    // Mark clean post-load
+    this.dirty = false;
+  }
+
+  private serialize() {
+    return {
+      version: Player.SERIALIZATION_VERSION,
+      x: this.sprite.x,
+      y: this.sprite.y,
+      ts: Date.now(),
+    };
+  }
+
+  private applySerialized(data: any) {
+    if (!data || typeof data !== "object") return;
+    if (typeof data.version !== "number") return; // basic gate
+    if (typeof data.x === "number" && typeof data.y === "number") {
+      this.sprite.x = data.x;
+      this.sprite.y = data.y;
+      // ensure facing direction remains plausible; keep lastDirection
+      this.playAnim("idle", this.lastDirection, true);
+    }
+  }
+
+  private markDirty() {
+    this.dirty = true;
+    if (this.autosaveEnabled) this.scheduleSave();
+  }
+
+  private scheduleSave() {
+    if (!this.storageKey) return;
+    if (this.saveTimer) window.clearTimeout(this.saveTimer);
+    this.saveTimer = window.setTimeout(() => this.saveNow(), this.saveDelayMs);
+  }
+
+  saveNow() {
+    if (!this.storageKey) return;
+    if (!this.dirty) return;
+    try {
+      window.localStorage.setItem(
+        this.storageKey,
+        JSON.stringify(this.serialize())
+      );
+      this.dirty = false;
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn("Player persistence save failed", e);
+    }
+  }
+
+  destroy() {
+    if (this.saveTimer) window.clearTimeout(this.saveTimer);
+    this.saveTimer = null;
+    this.saveNow(); // final flush
   }
 
   getPosition(): [x: number, y: number] {
@@ -127,6 +208,7 @@ export class Player {
       } else {
         // If not walkable, stop movement and play idle
         this.playAnim("idle", this.lastDirection, true);
+        this.markDirty();
 
         return false;
       }
@@ -136,11 +218,19 @@ export class Player {
       this.sprite.y = y;
       // Play idle animation facing last direction
       this.playAnim("idle", this.lastDirection, true);
+      this.markDirty();
 
       return false;
     }
 
     return true;
+  }
+
+  /** Direct position setter (used by tests & potential teleport). */
+  setPosition(x: number, y: number) {
+    this.sprite.x = x;
+    this.sprite.y = y;
+    this.markDirty();
   }
 
   // Move the player to a neighbouring tile adjacent to (tx,ty) and call onArrive when reached.

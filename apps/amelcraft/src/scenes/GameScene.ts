@@ -109,6 +109,8 @@ export class GameScene extends Phaser.Scene {
       shell: this,
       start: playerStart,
     });
+    // Enable player position persistence (after worldManager & inventory seeded)
+    this.player.enablePersistence(this.worldManager.getSeed());
     this.camera = new Camera({ shell: this });
     // Ensure initial view is centered on the player
     this.camera.recenter();
@@ -138,6 +140,7 @@ export class GameScene extends Phaser.Scene {
     this.worldManager.destroy();
     this.hud.destroy();
     this.inventory.destroy();
+    this.player.destroy();
   }
 
   // ===================
