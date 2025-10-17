@@ -193,11 +193,11 @@ Edge Cases:
 
 ```
 1. [x] Extend Inventory (removeBlock, removeObject, addMany, hasObject, count helpers)
-2. [ ] Add 'craft' to Option union & HUD icon
-3. [ ] Create Crafting.ts (recipes, simulate, execute)
-4. [ ] Implement <craft-modal> custom element
-5. [ ] Integrate HUD option toggling modal
-6. [ ] Wire CraftResult HUD refresh workflow
+2. [x] Add 'craft' to Option union & HUD icon
+3. [x] Create Crafting.ts (recipes, simulate, execute)
+4. [x] Implement <craft-modal> custom element
+5. [x] Integrate HUD option toggling modal
+6. [x] Wire CraftResult HUD refresh workflow
 7. [ ] Add unit tests for crafting logic
 8. [ ] Update COLLECTIBLES.md (link to crafting doc) or cross-reference
 9. [ ] Optional: toast feedback on success/failure

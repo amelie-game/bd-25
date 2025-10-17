@@ -208,7 +208,11 @@ export class CollectMode {
         wm.removeObjectAtGlobal(tx, ty);
         this.shell
           .getHud()
-          .update(this.shell.getInventory().getBlocks(), this.shell.getMode());
+          .update(
+            this.shell.getInventory().getBlocks(),
+            this.shell.getMode(),
+            this.shell.getInventory().getObjects()
+          );
 
         return; // do not mutate tile when object collected
       }
@@ -221,7 +225,11 @@ export class CollectMode {
     if (this.shell.getInventory().add(toBlock(tile.index))) {
       this.shell
         .getHud()
-        .update(this.shell.getInventory().getBlocks(), this.shell.getMode());
+        .update(
+          this.shell.getInventory().getBlocks(),
+          this.shell.getMode(),
+          this.shell.getInventory().getObjects()
+        );
     }
 
     if (tile.index === GRASS) {

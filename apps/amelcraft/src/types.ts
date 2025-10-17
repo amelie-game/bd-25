@@ -27,7 +27,7 @@ export function toBlock(value: unknown): Block {
 const Movement = ["walk", "idle"] as const;
 export type Movement = (typeof Movement)[number];
 
-const Mode = ["collect", "move"] as const;
+const Mode = ["collect", "move", "craft"] as const;
 export type Mode = (typeof Mode)[number];
 
 export function isMode(value: unknown): value is Mode {

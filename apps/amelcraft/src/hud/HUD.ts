@@ -38,6 +38,12 @@ class HudOption extends HTMLElement {
           icon.innerHTML = "🚶";
           return [icon];
         }
+        case "craft": {
+          const icon = document.createElement("div");
+          icon.className = "hud-icon";
+          icon.innerHTML = "⚗️"; // beaker / alchemy icon
+          return [icon];
+        }
         default: {
           const canvas = document.createElement("canvas");
           canvas.width = 64;
@@ -248,7 +254,9 @@ export class HudRoot extends HTMLElement {
     controls.appendChild(moveOption);
 
     const selectedBlock =
-      this.selected !== "move" && this.selected !== "collect"
+      this.selected !== "move" &&
+      this.selected !== "collect" &&
+      this.selected !== "craft"
         ? this.selected
         : null;
 
@@ -283,14 +291,21 @@ export class HudRoot extends HTMLElement {
     collectOption.onclick = () => this.handleSelect("collect");
     controls.appendChild(collectOption);
 
+    const craftOption = document.createElement("hud-option");
+    craftOption.className = "with-frame with-shadow";
+    craftOption.setAttribute("type", "craft");
+    if (this.selected === "craft") craftOption.setAttribute("selected", "");
+    craftOption.onclick = () => this.handleSelect("craft");
+    controls.appendChild(craftOption);
+
     // Aggregate flower count badge (hidden resource) if >0
     const flowersCount = (this as any)._flowersCount as number | undefined;
     if (flowersCount && flowersCount > 0) {
       const badge = document.createElement("hud-badge");
       badge.setAttribute("count", String(flowersCount));
-      // Smaller styling via inline scale
       (badge.style as any).transform = "scale(0.85)";
-      collectOption.querySelector("button")?.appendChild(badge);
+      // Show count only on craft option (hidden resource indicator)
+      craftOption.querySelector("button")?.appendChild(badge);
     }
   }
 
