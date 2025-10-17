@@ -120,7 +120,7 @@ HUD Changes:
 - Clicking it toggles `<craft-modal>` (overlay panel centered).
 
 Modal `<craft-modal>`:
-- Flower selection (list of flower types with counts).
+- Flower selection (sprite icons with counts; click to select a flower catalyst).
 - Sand amount selector (range 1..10 clamped by available Yellow count).
 - Live preview of output distribution (colored block icons + counts).
 - Craft button (HudOption styling) disabled until valid; shows reason in `title` attribute.

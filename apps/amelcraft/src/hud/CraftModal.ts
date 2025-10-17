@@ -105,7 +105,7 @@ export class CraftModal extends HTMLElement {
       .panel { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width: min(480px, 90vw); background:#1e1f24; color:#fff; padding:1em 1.25em; border-radius:0.9em; box-shadow:0 4px 28px #000a; display:flex; flex-direction:column; gap:1em; font-family: system-ui, sans-serif; }
       h2 { margin:0; font-size:1.2em; }
       .flowers { display:flex; flex-wrap:wrap; gap:0.5em; }
-      .flower { background:#222; padding:0.5em 0.7em; border-radius:0.6em; cursor:pointer; display:flex; align-items:center; gap:0.4em; font-size:0.85em; position:relative; }
+      .flower { background:transparent; padding:0.25em 0.4em; border-radius:0.6em; cursor:pointer; display:flex; align-items:center; gap:0.4em; font-size:0.85em; position:relative; }
       .flower[selected] { outline:2px solid #4af; background:#2a2f40; }
       .count { background:#0006; padding:0 0.5em; border-radius:0.6em; font-weight:600; }
       .sand { display:flex; align-items:center; gap:0.5em; }
@@ -161,13 +161,51 @@ export class CraftModal extends HTMLElement {
         const id = f.object as FlowerId;
         if (this.selectedFlower === id) el.setAttribute("selected", "");
         el.onclick = () => this.selectFlower(id);
-        const label = document.createElement("span");
-        label.textContent = id.replace("flower_", "");
+        // Create a canvas to draw the flower sprite from the 'objects' atlas
+        const canvas = document.createElement("canvas");
+        // Original frames are 16x32; upscale for clarity
+        const targetW = 32;
+        const targetH = 64;
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext("2d");
+        const game = (window as any).game as Phaser.Game | undefined;
+        const tex = game?.textures?.get?.("objects");
+        const frame = tex?.get?.(id);
+        if (ctx && frame && frame.source?.image) {
+          const img = frame.source.image;
+          // Narrow to supported CanvasImageSource types
+          const source: CanvasImageSource = img as
+            | HTMLImageElement
+            | HTMLCanvasElement;
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(
+            source,
+            frame.cutX,
+            frame.cutY,
+            frame.width,
+            frame.height,
+            0,
+            0,
+            targetW,
+            targetH
+          );
+        } else {
+          // Fallback text label if texture not ready
+          const fallback = document.createElement("span");
+          fallback.textContent = id.replace("flower_", "");
+          el.appendChild(fallback);
+        }
+        // Add count badge
         const count = document.createElement("span");
         count.className = "count";
         count.textContent = String(f.count);
-        el.appendChild(label);
+        canvas.style.display = "block";
+        canvas.style.borderRadius = "0.4em";
+        // No background so the sprite appears directly on panel
+        el.appendChild(canvas);
         el.appendChild(count);
+        el.title = id.replace("flower_", "");
         flowersWrap.appendChild(el);
       }
     }
