@@ -7,7 +7,6 @@ export class TitleScene extends Phaser.Scene {
   }
 
   preload() {
-    // Simple loading progress bar
     const width = this.scale.width;
     const height = this.scale.height;
     const progressBox = this.add.graphics();
@@ -26,8 +25,6 @@ export class TitleScene extends Phaser.Scene {
       progressBox.destroy();
     });
 
-    // Load all atlases & spritesheets defined in the pack file
-    // The pack file is at /assets/pack.json relative to index.html
     this.load.pack("main", "assets/pack.json");
   }
 
@@ -35,9 +32,8 @@ export class TitleScene extends Phaser.Scene {
     const width = this.sys.game.config.width as number;
     const height = this.sys.game.config.height as number;
 
-    // Create all animations from Aseprite for amelie (and others if needed)
+    // Animations
     this.anims.createFromAseprite(assets.amelie.key);
-    // If you have more atlases, repeat for each: this.anims.createFromAseprite("cynthia"); etc.
 
     this.add
       .text(width / 2, height / 2 - 40, "Amelcraft", {
@@ -46,56 +42,57 @@ export class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
+    const hasPersistence = await this.hasPersistentState();
+
     let continueBtn: Phaser.GameObjects.Text | undefined;
+    if (hasPersistence) {
+      continueBtn = this.add
+        .text(width / 2, height / 2 + 10, "Weiter", {
+          font: "24px Arial",
+          color: "#0ff",
+          backgroundColor: "#222",
+          padding: { x: 16, y: 8 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+    }
 
     const newGameBtn = this.add
-      .text(width / 2, height / 2 + 50, "Neues Spiel", {
-        font: "24px Arial",
-        color: "#0ff",
-        backgroundColor: "#222",
-        padding: { x: 16, y: 8 },
-      })
+      .text(
+        width / 2,
+        hasPersistence ? height / 2 + 50 : height / 2 + 10,
+        "Neues Spiel",
+        {
+          font: "24px Arial",
+          color: "#0ff",
+          backgroundColor: "#222",
+          padding: { x: 16, y: 8 },
+        }
+      )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
     newGameBtn.on("pointerdown", async () => {
-      continueBtn?.setColor("#0ff");
+      if (continueBtn) continueBtn.setColor("#0ff");
       newGameBtn.setColor("#ff0");
-
       await this.clearPersistentState();
-      this.scene.start("GameScene");
+      const seed = this.generateSeed();
+      this.scene.start("GameScene", { seed });
     });
 
-    if (!(await this.hasPersistentState())) return;
-
-    continueBtn = this.add
-      .text(width / 2, height / 2 + 10, "Weiter", {
-        font: "24px Arial",
-        color: "#0ff",
-        backgroundColor: "#222",
-        padding: { x: 16, y: 8 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-
-    continueBtn.on("pointerdown", () => {
-      newGameBtn.setColor("#0ff");
-      continueBtn.setColor("#ff0");
-
-      this.scene.start("GameScene");
-    });
+    if (continueBtn) {
+      continueBtn.on("pointerdown", () => {
+        newGameBtn.setColor("#0ff");
+        continueBtn!.setColor("#ff0");
+        const seed = this.getPersistedSeed() ?? "local-seed";
+        this.scene.start("GameScene", { seed });
+      });
+    }
   }
 
-  /**
-   * Clear all persisted Amelcraft state:
-   * - Player & Inventory localStorage entries (keys starting 'amelcraft:')
-   * - IndexedDB chunk database ('AmelcraftWorld') containing serialized chunk snapshots
-   * Safe to call before starting a new game. If the IndexedDB deletion is blocked
-   * (open tabs), it will still clear localStorage and proceed.
-   */
-  private async clearPersistentState(): Promise<void> {
+  private async clearPersistentState() {
     try {
-      // Remove localStorage keys with amelcraft prefix
+      // Remove all amelcraft:* keys (player + inventory)
       const toRemove: string[] = [];
       for (let i = 0; i < window.localStorage.length; i++) {
         const k = window.localStorage.key(i);
@@ -103,14 +100,12 @@ export class TitleScene extends Phaser.Scene {
       }
       toRemove.forEach((k) => window.localStorage.removeItem(k));
 
-      // Delete IndexedDB database used by chunk persistence
       await new Promise<void>((resolve) => {
         const req = window.indexedDB.deleteDatabase("AmelcraftWorld");
         req.onsuccess = () => resolve();
-        req.onerror = () => resolve(); // ignore errors; maybe already gone
-        req.onblocked = () => resolve(); // cannot delete now; treat as cleared localStorage only
+        req.onerror = () => resolve();
+        req.onblocked = () => resolve();
       });
-
       // eslint-disable-next-line no-console
       console.log(
         "[TitleScene] Persistence cleared (localStorage + IndexedDB)"
@@ -121,20 +116,16 @@ export class TitleScene extends Phaser.Scene {
     }
   }
 
-  /**
-   * Determine if any persisted Amelcraft state exists.
-   * Returns true if:
-   *  1. At least one player key (amelcraft:player:*) AND
-   *  2. IndexedDB database AmelcraftWorld exists and contains the 'chunks' object store.
-   * If the IndexedDB open fails (e.g., blocked / unavailable), falls back to localStorage check.
-   */
+  /** All three must exist: player key, inventory key, chunks DB with store. */
   private async hasPersistentState(): Promise<boolean> {
     let hasPlayer = false;
+    let hasInventory = false;
     for (let i = 0; i < window.localStorage.length; i++) {
       const k = window.localStorage.key(i);
       if (!k) continue;
-      else if (k.startsWith("amelcraft:player:")) hasPlayer = true;
-      if (hasPlayer) break;
+      if (k.startsWith("amelcraft:player:")) hasPlayer = true;
+      else if (k.startsWith("amelcraft:inventory:")) hasInventory = true;
+      if (hasPlayer && hasInventory) break;
     }
 
     let hasChunksDB = false;
@@ -152,6 +143,28 @@ export class TitleScene extends Phaser.Scene {
       hasChunksDB = false;
     }
 
-    return hasPlayer && hasChunksDB;
+    return hasPlayer && hasInventory && hasChunksDB;
+  }
+
+  /** Extract first discovered persisted seed from inventory or player localStorage keys. */
+  private getPersistedSeed(): string | null {
+    let found: string | null = null;
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const k = window.localStorage.key(i);
+      if (!k) continue;
+      if (k.startsWith("amelcraft:inventory:")) {
+        found = k.substring("amelcraft:inventory:".length);
+        break;
+      }
+      if (k.startsWith("amelcraft:player:")) {
+        found = k.substring("amelcraft:player:".length);
+      }
+    }
+    return found;
+  }
+
+  private generateSeed(): string {
+    const rand = Math.floor(Math.random() * 0xffffffff);
+    return `seed-${Date.now().toString(36)}-${rand.toString(16)}`;
   }
 }

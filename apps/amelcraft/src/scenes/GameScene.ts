@@ -35,6 +35,7 @@ export class GameScene extends Phaser.Scene {
   private camera!: Camera;
   private player!: Player;
   private devOverlay!: DevOverlay;
+  private worldSeed: string | number | undefined;
 
   constructor() {
     super("GameScene");
@@ -43,6 +44,10 @@ export class GameScene extends Phaser.Scene {
     this.moveMode = new MoveMode(this);
     this.placeMode = new PlaceMode(this);
     this.activeMode = this.moveMode; // default mode
+  }
+
+  init(data: { seed?: string | number }): void {
+    this.worldSeed = data?.seed;
   }
 
   getCamera() {
@@ -87,7 +92,7 @@ export class GameScene extends Phaser.Scene {
     window.game = this.game;
 
     this.pointer = new Pointer(this);
-    this.worldManager = new WorldManager(this);
+    this.worldManager = new WorldManager(this, this.worldSeed ?? "local-seed");
     this.inventory = new Inventory();
     // Enable inventory persistence scoped by world seed (same as chunks)
     this.inventory.enablePersistence(this.worldManager.getSeed());
