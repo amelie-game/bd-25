@@ -201,9 +201,73 @@ export class CollectMode {
     const objectAt = wm.getObjectAtGlobal(tx, ty);
 
     if (objectAt) {
-      // Attempt to add to inventory as object
-      const added = this.shell.getInventory().addObject(objectAt.id);
-
+      const id = objectAt.id;
+      // Rock collection logic: rocks shrink until removed; award blocks at each successful collection
+      if (id.startsWith("rock_")) {
+        // Award 5 each of LightGrey, Grey, Black (atomic add; if cannot add all, attempt partial?)
+        const batches = [
+          { block: assets.blocks.sprites.LightGrey, count: 5 },
+          { block: assets.blocks.sprites.Grey, count: 5 },
+          { block: assets.blocks.sprites.Black, count: 5 },
+        ];
+        // Attempt atomic add; if fails due to capacity, try individual adds best-effort
+        const inv = this.shell.getInventory();
+        if (inv.canAddAllBlocks(batches)) {
+          batches.forEach((b) => inv.addMany(b.block, b.count));
+        } else {
+          batches.forEach((b) => {
+            // degrade to single additions until stack full
+            for (let i = 0; i < b.count; i++) {
+              if (!inv.add(b.block)) break;
+            }
+          });
+        }
+        // Transition rock size
+        let nextId: string | null = null;
+        if (id === "rock_large") nextId = "rock_medium";
+        else if (id === "rock_medium") nextId = "rock_small";
+        else if (id === "rock_small") nextId = "rock_extrasmall";
+        else if (id === "rock_extrasmall") nextId = null; // final removal
+        // Remove current object
+        wm.removeObjectAtGlobal(tx, ty);
+        // Spawn smaller variant if any remains
+        if (nextId) {
+          // Re-add object with next size
+          const { chunkX, chunkY, localX, localY } = wm.getObjectAtGlobal(
+            tx,
+            ty
+          ) || {
+            chunkX: Math.floor(tx / (assets as any).CHUNK_TILES || 0),
+            chunkY: Math.floor(ty / (assets as any).CHUNK_TILES || 0),
+            localX: tx,
+            localY: ty,
+          };
+          // Direct chunk manipulation (safer): convert global tile coords
+          const {
+            chunkX: cX,
+            chunkY: cY,
+            localX: lx,
+            localY: ly,
+          } = (wm as any).globalTileToChunk?.(tx, ty) || {
+            chunkX: 0,
+            chunkY: 0,
+            localX: tx,
+            localY: ty,
+          };
+          const chunk = (wm as any).activeChunks?.get?.(`${cX}:${cY}`);
+          chunk?.addObject?.(nextId, lx, ly);
+        }
+        this.shell
+          .getHud()
+          .update(
+            this.shell.getInventory().getBlocks(),
+            this.shell.getMode(),
+            this.shell.getInventory().getObjects()
+          );
+        return; // do not mutate tile for rock collection
+      }
+      // Flower or other collectible: attempt to add
+      const added = this.shell.getInventory().addObject(id);
       if (added) {
         wm.removeObjectAtGlobal(tx, ty);
         this.shell
@@ -213,7 +277,6 @@ export class CollectMode {
             this.shell.getMode(),
             this.shell.getInventory().getObjects()
           );
-
         return; // do not mutate tile when object collected
       }
       // If inventory full for this object, fall through to tile logic (optional policy)

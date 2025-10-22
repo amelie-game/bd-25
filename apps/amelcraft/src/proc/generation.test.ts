@@ -27,6 +27,11 @@ class FakeScene {
       strokeRect: () => {},
       fillRect: () => {},
     }),
+    image: () => ({
+      setDepth: () => {},
+      setOrigin: () => {},
+      destroy: () => {},
+    }),
   };
 }
 

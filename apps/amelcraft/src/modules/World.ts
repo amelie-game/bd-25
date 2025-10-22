@@ -5,6 +5,7 @@ import {
   CHUNK_TILES,
   CHUNK_PIXELS,
   FLOWER_DENSITY_DIVISOR,
+  ROCK_DENSITY_DIVISOR,
   OBJECT_DEPTH,
 } from "../constants";
 import { GameScene } from "../scenes/GameScene";
@@ -166,6 +167,9 @@ export class World {
       return false;
     const idx = tileIndex(tx, ty);
     const tileId = this.baseTiles[idx];
+    // If an object occupies this tile and is a rock variant, treat as non-walkable
+    const obj = this.objects.get(idx);
+    if (obj && obj.startsWith("rock_")) return false;
     return tileId !== assets.blocks.sprites.Water; // Non-water walkable for now
   }
 
@@ -333,6 +337,61 @@ export class World {
           const gx = pickIdx - gy * width;
           const choice = flowerIds[Math.floor(rng() * flowerIds.length)];
           this.addObject(choice, gx, gy);
+        }
+      }
+    }
+
+    // === Procedural Rock Placement (Iteration: Rocks) ===
+    // Rocks appear across all biomes on any non-water tile (including sand, snow, grass, ground).
+    // Deterministic using same RNG; density independent from flowers.
+    if (ROCK_DENSITY_DIVISOR > 0) {
+      // Gather rock ids
+      const rockIds = Object.values(assets.objects.sprites).filter(
+        (id): id is ObjectId => typeof id === "string" && id.startsWith("rock_")
+      );
+      if (rockIds.length) {
+        // Weighted choice favoring smaller sizes (extrasmall, small, medium, large)
+        const weightMap: Record<string, number> = {
+          rock_extrasmall: 5,
+          rock_small: 4,
+          rock_medium: 2,
+          rock_large: 1,
+        };
+        const weights = rockIds.map((id) => weightMap[id] ?? 1);
+        const totalWeight = weights.reduce((a, b) => a + b, 0);
+        const pickWeighted = () => {
+          let r = rng() * totalWeight;
+          for (let i = 0; i < rockIds.length; i++) {
+            r -= weights[i];
+            if (r <= 0) return rockIds[i];
+          }
+          return rockIds[rockIds.length - 1];
+        };
+        let placedRocks = 0;
+        const landIndices: number[] = [];
+        for (let x = 0; x < width; x++) {
+          for (let y = 0; y < height; y++) {
+            const idx = tileIndex(x, y);
+            const tileVal = this.baseTiles[idx];
+            if (tileVal === WATER) continue; // skip water
+            landIndices.push(idx);
+            if (rng() < 1 / ROCK_DENSITY_DIVISOR) {
+              const choice = pickWeighted();
+              // Disallow overlapping existing objects (flowers)
+              if (!this.objects.has(idx)) {
+                this.addObject(choice, x, y);
+                placedRocks++;
+              }
+            }
+          }
+        }
+        // Optional minimum guarantee: ensure at least one rock on sizeable land masses
+        if (placedRocks === 0 && landIndices.length > 2000) {
+          const pickIdx = landIndices[Math.floor(rng() * landIndices.length)];
+          const gy = Math.floor(pickIdx / width);
+          const gx = pickIdx - gy * width;
+          const choice = pickWeighted();
+          if (!this.objects.has(pickIdx)) this.addObject(choice, gx, gy);
         }
       }
     }

@@ -112,7 +112,11 @@ describe("Flower object generation (Step 11)", () => {
       targetCx,
       targetCy
     );
-    expect(getObjectsCount(w)).toBe(0);
+    // Count only flower_ prefixed objects (rocks allowed now across biomes)
+    const flowerOnly = Array.from((w as any).objects.values()).filter(
+      (id: any) => typeof id === "string" && id.startsWith("flower_")
+    );
+    expect(flowerOnly.length).toBe(0);
   });
 
   it("does not place flowers in snow biome chunks", () => {
@@ -136,6 +140,9 @@ describe("Flower object generation (Step 11)", () => {
       targetCx,
       targetCy
     );
-    expect(getObjectsCount(w)).toBe(0);
+    const flowerOnly = Array.from((w as any).objects.values()).filter(
+      (id: any) => typeof id === "string" && id.startsWith("flower_")
+    );
+    expect(flowerOnly.length).toBe(0);
   });
 });

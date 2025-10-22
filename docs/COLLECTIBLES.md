@@ -28,7 +28,6 @@ Non-goals (for this first pass): regrowth, tool requirements, animation, determi
 | Tile | Terrain base (numeric ID sourced from `assets.blocks.sprites`). |
 | Object | A collectible entity placed "on" a tile (flower, rock). Not encoded as tile ID. |
 | Chunk | 100×100 tile region (see `CHUNK_TILES`). Owns tiles + objects. |
-| Baseline Tiles | Procedurally generated initial tile array (used for diffing). |
 | Overlay Diff | Sparse tile mutations relative to baseline. |
 
 ---
@@ -42,7 +41,6 @@ type ObjectId =
   | 'flower_turquoise' | 'flower_blue' | 'flower_purple' | 'flower_pink'
   // (rocks reserved for later)
   ;
-
 interface WorldObject {
   id: ObjectId;          // atlas frame key
   i: number;             // linear tile index (tx + ty * CHUNK_TILES)
@@ -54,7 +52,6 @@ interface SerializedObjectEntry {
   k: ObjectId; // kind / frame key
 }
 
-// Extend SerializedChunk (IChunkStore) with:
 interface SerializedChunk {
   ...
   objects?: SerializedObjectEntry[]; // Optional full snapshot (first implementation)
