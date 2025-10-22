@@ -46,8 +46,8 @@ export class TitleScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const newGameBtn = this.add
-      .text(width / 2, height / 2 + 10, "New Game", {
+    const continueBtn = this.add
+      .text(width / 2, height / 2 + 10, "Weiter", {
         font: "24px Arial",
         color: "#0ff",
         backgroundColor: "#222",
@@ -56,8 +56,8 @@ export class TitleScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
-    const continueBtn = this.add
-      .text(width / 2, height / 2 + 50, "Continue", {
+    const newGameBtn = this.add
+      .text(width / 2, height / 2 + 50, "Neues Spiel", {
         font: "24px Arial",
         color: "#0ff",
         backgroundColor: "#222",
