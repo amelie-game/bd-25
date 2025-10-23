@@ -1,0 +1,825 @@
+<!DOCTYPE html><html data-theme="dark"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="description" content="Architecture"><meta name="author" content="MDXpress"><title>Architecture</title><link rel="icon" type="image/svg+xml" href="/bd-25/favicon.svg"><link rel="stylesheet" href="/bd-25/_astro/_slug_.FGKI9IMe.css"></head> <body> <div class="app"> <nav class="navigation"> <h1 class="navigation-header">docs</h1> <hr> <ul class="tree"> <li class="tree-node"> <a href="/bd-25/docs/architecture" class="tree-link active"> <span class="tree-file-icon"></span> ARCHITECTURE.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/assets" class="tree-link"> <span class="tree-file-icon"></span> ASSETS.mdx </a>  </li><li class="tree-node"> <a href="/bd-25/docs/biomes" class="tree-link"> <span class="tree-file-icon"></span> BIOMES.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/collectibles" class="tree-link"> <span class="tree-file-icon"></span> COLLECTIBLES.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/concept" class="tree-link"> <span class="tree-file-icon"></span> CONCEPT.mdx </a>  </li><li class="tree-node"> <a href="/bd-25/docs/crafting" class="tree-link"> <span class="tree-file-icon"></span> CRAFTING.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/features" class="tree-link"> <span class="tree-file-icon"></span> FEATURES.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/performance" class="tree-link"> <span class="tree-file-icon"></span> PERFORMANCE.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/persistence" class="tree-link"> <span class="tree-file-icon"></span> PERSISTENCE.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/testing" class="tree-link"> <span class="tree-file-icon"></span> TESTING.md </a>  </li> </ul> </nav> <main class="main-content"> <div class="doc-content"> <h1 id="architecture">Architecture</h1>
+<p>This document explores multiple architectural styles for game development, as discussed in the context of a Phaser.js project. We provide an overview of each, sample implementations based on a simple tile-based game (with animation and hit detection), and a critical evaluation of their benefits and drawbacks.</p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li>Decision</li>
+<li>Alternatives</li>
+<li>Japanese Software Philosophy: Sample &#x26; Evaluation</li>
+<li>Entity-Component-System (ECS): Sample &#x26; Evaluation</li>
+<li>Hexagonal Architecture: Sample &#x26; Evaluation</li>
+<li>Model-View-Controller (MVC): Sample &#x26; Evaluation</li>
+<li>Event-Driven / Observer Pattern: Sample &#x26; Evaluation</li>
+<li>Related Documents</li>
+</ol>
+<h2 id="decision">Decision</h2>
+<p>For Amelcraft, we will begin with the Japanese Software Philosophy (minimalist, in-scene model) to maximize simplicity, rapid prototyping, and maintainability. This approach is ideal for small, fast-evolving games and allows for quick iteration and easy refactoring.</p>
+<p>If the game grows in complexity—such as adding more entities, advanced mechanics, or requiring better testability and scalability—we will incrementally refactor toward an Entity-Component-System (ECS) or Hexagonal architecture. These styles offer greater modularity, decoupling, and long-term maintainability, but introduce more boilerplate and abstraction.</p>
+<p>This staged approach ensures we keep development efficient and accessible in the early phases, while remaining flexible to adopt more robust architectural patterns as needed.</p>
+<h2 id="alternatives">Alternatives</h2>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Style</th><th>Core Focus / Principle</th><th>Strengths</th><th>Drawbacks / When to Avoid</th></tr></thead><tbody><tr><td>Japanese Software Philosophy</td><td>Simplicity, clarity, Kaizen</td><td>Minimal, readable, easy to refactor, fast to prototype</td><td>Can get messy as complexity grows</td></tr><tr><td>Hexagonal Architecture</td><td>Separation of concerns, testability</td><td>Decoupled, testable, flexible, scalable</td><td>Boilerplate, overkill for small games</td></tr><tr><td>ECS</td><td>Composition over inheritance</td><td>Highly flexible, reusable, efficient for many objects</td><td>Verbose, harder to debug, overkill small</td></tr><tr><td>MVC</td><td>UI/data/input separation</td><td>Clear roles, easy to test UI/logic separately</td><td>Verbose, not always natural for games</td></tr><tr><td>Event-Driven / Observer</td><td>Decoupled event notification</td><td>Flexible, extensible, easy to add features</td><td>Can be hard to trace/debug, memory leaks</td></tr></tbody></table>
+<p><strong>Summary:</strong></p>
+<ul>
+<li>For small, rapidly evolving games, Japanese style or MVC can be ideal.</li>
+<li>For large, complex, or long-lived games, Hexagonal or ECS offer better scalability and maintainability.</li>
+<li>Event-driven/Observer is best for decoupling and extensibility, but can add complexity if overused.</li>
+</ul>
+<h2 id="japanese-software-philosophy-sample--evaluation">Japanese Software Philosophy: Sample &#x26; Evaluation</h2>
+<ul>
+<li><strong>Focus:</strong> Code as craftsmanship, simplicity, clarity, and continuous small improvements (Kaizen).</li>
+<li><strong>Benefits:</strong>
+<ul>
+<li>Highly maintainable and readable code.</li>
+<li>Minimal ceremony and abstraction; only extract when needed.</li>
+<li>Emphasizes bug prevention and immediate fixes.</li>
+<li>Evolves codebase gradually, avoiding speculative design.</li>
+</ul>
+</li>
+<li><strong>What it solves:</strong>
+<ul>
+<li>Reduces over-engineering and unnecessary complexity.</li>
+<li>Keeps codebase approachable and easy to refactor.</li>
+</ul>
+</li>
+</ul>
+<h3 id="sample-implementation-minimalist-in-scene-model">Sample Implementation (Minimalist, In-Scene Model)</h3>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> Phaser </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> "phaser"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#F97583"> class</span><span style="color:#B392F0"> MainScene</span><span style="color:#F97583"> extends</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Scene</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> player</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Physics</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Arcade</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Sprite</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> cursors</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Types</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Input</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Keyboard</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">CursorKeys</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> obstacles</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Physics</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Arcade</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">StaticGroup</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  preload</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.load.</span><span style="color:#B392F0">spritesheet</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"player"</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">"player.png"</span><span style="color:#E1E4E8">, {</span></span>
+<span class="line"><span style="color:#E1E4E8">      frameWidth: </span><span style="color:#79B8FF">32</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">      frameHeight: </span><span style="color:#79B8FF">48</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">    });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.load.</span><span style="color:#B392F0">image</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"rock"</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">"rock.png"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  create</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#6A737D">    // Player sprite with physics</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.player </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.physics.add.</span><span style="color:#B392F0">sprite</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">"player"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.player.</span><span style="color:#B392F0">setCollideWorldBounds</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Define player walking animations</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#E1E4E8">      key: </span><span style="color:#9ECBFF">"walk-left"</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">      frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"player"</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">9</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">11</span><span style="color:#E1E4E8"> }),</span></span>
+<span class="line"><span style="color:#E1E4E8">      frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">      repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">    });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#E1E4E8">      key: </span><span style="color:#9ECBFF">"walk-right"</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">      frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"player"</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">6</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">8</span><span style="color:#E1E4E8"> }),</span></span>
+<span class="line"><span style="color:#E1E4E8">      frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">      repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">    });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#E1E4E8">      key: </span><span style="color:#9ECBFF">"walk-up"</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">      frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"player"</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">3</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">5</span><span style="color:#E1E4E8"> }),</span></span>
+<span class="line"><span style="color:#E1E4E8">      frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">      repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">    });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({</span></span>
+<span class="line"><span style="color:#E1E4E8">      key: </span><span style="color:#9ECBFF">"walk-down"</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">      frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"player"</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">2</span><span style="color:#E1E4E8"> }),</span></span>
+<span class="line"><span style="color:#E1E4E8">      frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">      repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#E1E4E8">    });</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Input</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.cursors </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.input.keyboard.</span><span style="color:#B392F0">createCursorKeys</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Add obstacles (e.g., rocks)</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.obstacles </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.physics.add.</span><span style="color:#B392F0">staticGroup</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.obstacles.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">200</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">"rock"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.obstacles.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">300</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">150</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">"rock"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Collision detection</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.physics.add.</span><span style="color:#B392F0">collider</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.player, </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.obstacles);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  update</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> speed</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 100</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> velocity</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> { x: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, y: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8"> };</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.left?.isDown) {</span></span>
+<span class="line"><span style="color:#E1E4E8">      velocity.x </span><span style="color:#F97583">=</span><span style="color:#F97583"> -</span><span style="color:#E1E4E8">speed;</span></span>
+<span class="line"><span style="color:#79B8FF">      this</span><span style="color:#E1E4E8">.player.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"walk-left"</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">    } </span><span style="color:#F97583">else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.right?.isDown) {</span></span>
+<span class="line"><span style="color:#E1E4E8">      velocity.x </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> speed;</span></span>
+<span class="line"><span style="color:#79B8FF">      this</span><span style="color:#E1E4E8">.player.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"walk-right"</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">    } </span><span style="color:#F97583">else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.up?.isDown) {</span></span>
+<span class="line"><span style="color:#E1E4E8">      velocity.y </span><span style="color:#F97583">=</span><span style="color:#F97583"> -</span><span style="color:#E1E4E8">speed;</span></span>
+<span class="line"><span style="color:#79B8FF">      this</span><span style="color:#E1E4E8">.player.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"walk-up"</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">    } </span><span style="color:#F97583">else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.down?.isDown) {</span></span>
+<span class="line"><span style="color:#E1E4E8">      velocity.y </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> speed;</span></span>
+<span class="line"><span style="color:#79B8FF">      this</span><span style="color:#E1E4E8">.player.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"walk-down"</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">    } </span><span style="color:#F97583">else</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#79B8FF">      this</span><span style="color:#E1E4E8">.player.</span><span style="color:#B392F0">setVelocity</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">      return</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.player.</span><span style="color:#B392F0">setVelocity</span><span style="color:#E1E4E8">(velocity.x, velocity.y);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span></code></pre>
+<h3 id="critical-evaluation">Critical Evaluation</h3>
+<ul>
+<li><strong>Benefits:</strong>
+<ul>
+<li>Extremely clear and easy to follow; all logic is in one place.</li>
+<li>No unnecessary abstractions or indirection.</li>
+<li>Easy to refactor as requirements change.</li>
+<li>Fast to prototype and iterate.</li>
+</ul>
+</li>
+<li><strong>Drawbacks:</strong>
+<ul>
+<li>As the game grows (e.g., more input types, more entities, inventory, tile placement), the scene can become bloated and harder to maintain.</li>
+<li>Harder to test logic in isolation (e.g., movement, collision) without running the full game.</li>
+<li>Tightly coupled to Phaser; porting to another engine or platform would require significant rewrites.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="entity-component-system-ecs-sample--evaluation">Entity-Component-System (ECS): Sample &#x26; Evaluation</h2>
+<ul>
+<li><strong>Focus:</strong> Composition over inheritance; entities are composed of reusable components, and systems operate on entities with specific components.</li>
+<li><strong>Benefits:</strong>
+<ul>
+<li>Highly flexible and extensible; new behaviors are added by composing components.</li>
+<li>Efficient for games with many similar objects (e.g., tile-based, simulation, or action games).</li>
+<li>Decouples data (components) from behavior (systems).</li>
+</ul>
+</li>
+<li><strong>What it solves:</strong>
+<ul>
+<li>Avoids deep inheritance hierarchies and promotes code reuse.</li>
+<li>Makes it easy to add, remove, or modify behaviors at runtime.</li>
+</ul>
+</li>
+</ul>
+<h3 id="sample-implementation-complete-ecs-example">Sample Implementation (Complete ECS Example)</h3>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#6A737D">// --- ECS Core Types ---</span></span>
+<span class="line"><span style="color:#F97583">type</span><span style="color:#B392F0"> Entity</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">interface</span><span style="color:#B392F0"> Component</span><span style="color:#E1E4E8"> {}</span></span>
+<span class="line"><span style="color:#F97583">interface</span><span style="color:#B392F0"> System</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#B392F0">  update</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">entities</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Entity</span><span style="color:#E1E4E8">[], </span><span style="color:#FFAB70">components</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Map</span><span style="color:#E1E4E8">&#x3C;</span><span style="color:#79B8FF">string</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">Map</span><span style="color:#E1E4E8">&#x3C;</span><span style="color:#B392F0">Entity</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">Component</span><span style="color:#E1E4E8">>>, </span><span style="color:#FFAB70">scene</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Scene</span><span style="color:#E1E4E8">)</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> void</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// --- Components ---</span></span>
+<span class="line"><span style="color:#F97583">interface</span><span style="color:#B392F0"> Position</span><span style="color:#F97583"> extends</span><span style="color:#B392F0"> Component</span><span style="color:#E1E4E8"> { </span><span style="color:#FFAB70">x</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">; </span><span style="color:#FFAB70">y</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">; }</span></span>
+<span class="line"><span style="color:#F97583">interface</span><span style="color:#B392F0"> Velocity</span><span style="color:#F97583"> extends</span><span style="color:#B392F0"> Component</span><span style="color:#E1E4E8"> { </span><span style="color:#FFAB70">dx</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">; </span><span style="color:#FFAB70">dy</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">; }</span></span>
+<span class="line"><span style="color:#F97583">interface</span><span style="color:#B392F0"> Sprite</span><span style="color:#F97583"> extends</span><span style="color:#B392F0"> Component</span><span style="color:#E1E4E8"> { </span><span style="color:#FFAB70">sprite</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Physics</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Arcade</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Sprite</span><span style="color:#E1E4E8">; }</span></span>
+<span class="line"><span style="color:#F97583">interface</span><span style="color:#B392F0"> Collider</span><span style="color:#F97583"> extends</span><span style="color:#B392F0"> Component</span><span style="color:#E1E4E8"> {}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// --- Systems ---</span></span>
+<span class="line"><span style="color:#F97583">class</span><span style="color:#B392F0"> MovementSystem</span><span style="color:#F97583"> implements</span><span style="color:#B392F0"> System</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#B392F0">  update</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">entities</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">components</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> positions</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> components.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'Position'</span><span style="color:#E1E4E8">)</span><span style="color:#F97583">!</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> velocities</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> components.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'Velocity'</span><span style="color:#E1E4E8">)</span><span style="color:#F97583">!</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    for</span><span style="color:#E1E4E8"> (</span><span style="color:#F97583">const</span><span style="color:#79B8FF"> entity</span><span style="color:#F97583"> of</span><span style="color:#E1E4E8"> entities) {</span></span>
+<span class="line"><span style="color:#F97583">      const</span><span style="color:#79B8FF"> pos</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> positions.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(entity) </span><span style="color:#F97583">as</span><span style="color:#B392F0"> Position</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">      const</span><span style="color:#79B8FF"> vel</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> velocities.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(entity) </span><span style="color:#F97583">as</span><span style="color:#B392F0"> Velocity</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">      if</span><span style="color:#E1E4E8"> (pos </span><span style="color:#F97583">&#x26;&#x26;</span><span style="color:#E1E4E8"> vel) {</span></span>
+<span class="line"><span style="color:#E1E4E8">        pos.x </span><span style="color:#F97583">+=</span><span style="color:#E1E4E8"> vel.dx;</span></span>
+<span class="line"><span style="color:#E1E4E8">        pos.y </span><span style="color:#F97583">+=</span><span style="color:#E1E4E8"> vel.dy;</span></span>
+<span class="line"><span style="color:#E1E4E8">      }</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">class</span><span style="color:#B392F0"> AnimationSystem</span><span style="color:#F97583"> implements</span><span style="color:#B392F0"> System</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#B392F0">  update</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">entities</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">components</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> velocities</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> components.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'Velocity'</span><span style="color:#E1E4E8">)</span><span style="color:#F97583">!</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> sprites</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> components.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'Sprite'</span><span style="color:#E1E4E8">)</span><span style="color:#F97583">!</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    for</span><span style="color:#E1E4E8"> (</span><span style="color:#F97583">const</span><span style="color:#79B8FF"> entity</span><span style="color:#F97583"> of</span><span style="color:#E1E4E8"> entities) {</span></span>
+<span class="line"><span style="color:#F97583">      const</span><span style="color:#79B8FF"> vel</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> velocities.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(entity) </span><span style="color:#F97583">as</span><span style="color:#B392F0"> Velocity</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">      const</span><span style="color:#79B8FF"> spriteComp</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> sprites.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(entity) </span><span style="color:#F97583">as</span><span style="color:#B392F0"> Sprite</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">      if</span><span style="color:#E1E4E8"> (vel </span><span style="color:#F97583">&#x26;&#x26;</span><span style="color:#E1E4E8"> spriteComp) {</span></span>
+<span class="line"><span style="color:#F97583">        const</span><span style="color:#79B8FF"> sprite</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> spriteComp.sprite;</span></span>
+<span class="line"><span style="color:#F97583">        if</span><span style="color:#E1E4E8"> (vel.dx </span><span style="color:#F97583">&#x3C;</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) sprite.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'walk-left'</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">        else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (vel.dx </span><span style="color:#F97583">></span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) sprite.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'walk-right'</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">        else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (vel.dy </span><span style="color:#F97583">&#x3C;</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) sprite.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'walk-up'</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">        else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (vel.dy </span><span style="color:#F97583">></span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) sprite.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'walk-down'</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">        else</span><span style="color:#E1E4E8"> sprite.</span><span style="color:#B392F0">setVelocity</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">      }</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">class</span><span style="color:#B392F0"> CollisionSystem</span><span style="color:#F97583"> implements</span><span style="color:#B392F0"> System</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#B392F0">  update</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">entities</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">components</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">scene</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Scene</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> sprites</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> components.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'Sprite'</span><span style="color:#E1E4E8">)</span><span style="color:#F97583">!</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> colliders</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> components.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'Collider'</span><span style="color:#E1E4E8">)</span><span style="color:#F97583">!</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#6A737D">    // Find player and obstacles</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> playerSprite</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Physics</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Arcade</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Sprite</span><span style="color:#F97583"> |</span><span style="color:#79B8FF"> undefined</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> obstacleSprites</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Physics</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Arcade</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Sprite</span><span style="color:#E1E4E8">[] </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> [];</span></span>
+<span class="line"><span style="color:#F97583">    for</span><span style="color:#E1E4E8"> (</span><span style="color:#F97583">const</span><span style="color:#79B8FF"> entity</span><span style="color:#F97583"> of</span><span style="color:#E1E4E8"> entities) {</span></span>
+<span class="line"><span style="color:#F97583">      const</span><span style="color:#79B8FF"> spriteComp</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> sprites.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(entity) </span><span style="color:#F97583">as</span><span style="color:#B392F0"> Sprite</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">      if</span><span style="color:#E1E4E8"> (spriteComp </span><span style="color:#F97583">&#x26;&#x26;</span><span style="color:#E1E4E8"> colliders.</span><span style="color:#B392F0">has</span><span style="color:#E1E4E8">(entity)) {</span></span>
+<span class="line"><span style="color:#F97583">        if</span><span style="color:#E1E4E8"> (</span><span style="color:#F97583">!</span><span style="color:#E1E4E8">playerSprite) playerSprite </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> spriteComp.sprite;</span></span>
+<span class="line"><span style="color:#F97583">        else</span><span style="color:#E1E4E8"> obstacleSprites.</span><span style="color:#B392F0">push</span><span style="color:#E1E4E8">(spriteComp.sprite);</span></span>
+<span class="line"><span style="color:#E1E4E8">      }</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (playerSprite </span><span style="color:#F97583">&#x26;&#x26;</span><span style="color:#E1E4E8"> obstacleSprites.</span><span style="color:#79B8FF">length</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#E1E4E8">      obstacleSprites.</span><span style="color:#B392F0">forEach</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">obstacle</span><span style="color:#F97583"> =></span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#E1E4E8">        scene.physics.add.</span><span style="color:#B392F0">collider</span><span style="color:#E1E4E8">(playerSprite, obstacle);</span></span>
+<span class="line"><span style="color:#E1E4E8">      });</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// --- ECS World ---</span></span>
+<span class="line"><span style="color:#F97583">class</span><span style="color:#B392F0"> World</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> nextEntityId</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 1</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> entities</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Entity</span><span style="color:#E1E4E8">[] </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> [];</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> components</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Map</span><span style="color:#E1E4E8">&#x3C;</span><span style="color:#79B8FF">string</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">Map</span><span style="color:#E1E4E8">&#x3C;</span><span style="color:#B392F0">Entity</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">Component</span><span style="color:#E1E4E8">>> </span><span style="color:#F97583">=</span><span style="color:#F97583"> new</span><span style="color:#B392F0"> Map</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> systems</span><span style="color:#F97583">:</span><span style="color:#B392F0"> System</span><span style="color:#E1E4E8">[] </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> [];</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  createEntity</span><span style="color:#E1E4E8">()</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Entity</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> id</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.nextEntityId</span><span style="color:#F97583">++</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.entities.</span><span style="color:#B392F0">push</span><span style="color:#E1E4E8">(id);</span></span>
+<span class="line"><span style="color:#F97583">    return</span><span style="color:#E1E4E8"> id;</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  addComponent</span><span style="color:#E1E4E8">&#x3C;</span><span style="color:#B392F0">T</span><span style="color:#F97583"> extends</span><span style="color:#B392F0"> Component</span><span style="color:#E1E4E8">>(</span><span style="color:#FFAB70">entity</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Entity</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">type</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> string</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">component</span><span style="color:#F97583">:</span><span style="color:#B392F0"> T</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (</span><span style="color:#F97583">!</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.components.</span><span style="color:#B392F0">has</span><span style="color:#E1E4E8">(type)) {</span></span>
+<span class="line"><span style="color:#79B8FF">      this</span><span style="color:#E1E4E8">.components.</span><span style="color:#B392F0">set</span><span style="color:#E1E4E8">(type, </span><span style="color:#F97583">new</span><span style="color:#B392F0"> Map</span><span style="color:#E1E4E8">());</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.components.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(type)</span><span style="color:#F97583">!</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">set</span><span style="color:#E1E4E8">(entity, component);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  addSystem</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">system</span><span style="color:#F97583">:</span><span style="color:#B392F0"> System</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.systems.</span><span style="color:#B392F0">push</span><span style="color:#E1E4E8">(system);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  update</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">scene</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Scene</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#F97583">    for</span><span style="color:#E1E4E8"> (</span><span style="color:#F97583">const</span><span style="color:#79B8FF"> system</span><span style="color:#F97583"> of</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.systems) {</span></span>
+<span class="line"><span style="color:#E1E4E8">      system.</span><span style="color:#B392F0">update</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.entities, </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.components, scene);</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#6A737D">    // Sync position to sprite</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> positions</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.components.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'Position'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> sprites</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.components.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'Sprite'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (positions </span><span style="color:#F97583">&#x26;&#x26;</span><span style="color:#E1E4E8"> sprites) {</span></span>
+<span class="line"><span style="color:#F97583">      for</span><span style="color:#E1E4E8"> (</span><span style="color:#F97583">const</span><span style="color:#79B8FF"> entity</span><span style="color:#F97583"> of</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.entities) {</span></span>
+<span class="line"><span style="color:#F97583">        const</span><span style="color:#79B8FF"> pos</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> positions.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(entity) </span><span style="color:#F97583">as</span><span style="color:#B392F0"> Position</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">        const</span><span style="color:#79B8FF"> spriteComp</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> sprites.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(entity) </span><span style="color:#F97583">as</span><span style="color:#B392F0"> Sprite</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">        if</span><span style="color:#E1E4E8"> (pos </span><span style="color:#F97583">&#x26;&#x26;</span><span style="color:#E1E4E8"> spriteComp) {</span></span>
+<span class="line"><span style="color:#E1E4E8">          spriteComp.sprite.</span><span style="color:#B392F0">setPosition</span><span style="color:#E1E4E8">(pos.x, pos.y);</span></span>
+<span class="line"><span style="color:#E1E4E8">        }</span></span>
+<span class="line"><span style="color:#E1E4E8">      }</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// --- Phaser Scene Integration ---</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> Phaser </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> 'phaser'</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#F97583"> class</span><span style="color:#B392F0"> MainScene</span><span style="color:#F97583"> extends</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Scene</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> world</span><span style="color:#F97583"> =</span><span style="color:#F97583"> new</span><span style="color:#B392F0"> World</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> playerEntity</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> Entity</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> cursors</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Types</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Input</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Keyboard</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">CursorKeys</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  preload</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.load.</span><span style="color:#B392F0">spritesheet</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'player.png'</span><span style="color:#E1E4E8">, { frameWidth: </span><span style="color:#79B8FF">32</span><span style="color:#E1E4E8">, frameHeight: </span><span style="color:#79B8FF">48</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.load.</span><span style="color:#B392F0">image</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'rock'</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'rock.png'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  create</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#6A737D">    // Create player entity</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.playerEntity </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">createEntity</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> playerSprite</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.physics.add.</span><span style="color:#B392F0">sprite</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">    playerSprite.</span><span style="color:#B392F0">setCollideWorldBounds</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">addComponent</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.playerEntity, </span><span style="color:#9ECBFF">'Position'</span><span style="color:#E1E4E8">, { x: </span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, y: </span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">addComponent</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.playerEntity, </span><span style="color:#9ECBFF">'Velocity'</span><span style="color:#E1E4E8">, { dx: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, dy: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">addComponent</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.playerEntity, </span><span style="color:#9ECBFF">'Sprite'</span><span style="color:#E1E4E8">, { sprite: playerSprite });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">addComponent</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.playerEntity, </span><span style="color:#9ECBFF">'Collider'</span><span style="color:#E1E4E8">, {});</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Define animations</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({ key: </span><span style="color:#9ECBFF">'walk-left'</span><span style="color:#E1E4E8">, frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">9</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">11</span><span style="color:#E1E4E8"> }), frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">, repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({ key: </span><span style="color:#9ECBFF">'walk-right'</span><span style="color:#E1E4E8">, frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">6</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">8</span><span style="color:#E1E4E8"> }), frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">, repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({ key: </span><span style="color:#9ECBFF">'walk-up'</span><span style="color:#E1E4E8">, frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">3</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">5</span><span style="color:#E1E4E8"> }), frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">, repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({ key: </span><span style="color:#9ECBFF">'walk-down'</span><span style="color:#E1E4E8">, frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">2</span><span style="color:#E1E4E8"> }), frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">, repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Input</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.cursors </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.input.keyboard.</span><span style="color:#B392F0">createCursorKeys</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Create obstacle entities</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> obstacle1</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">createEntity</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> rock1</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.physics.add.</span><span style="color:#B392F0">staticSprite</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">200</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'rock'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">addComponent</span><span style="color:#E1E4E8">(obstacle1, </span><span style="color:#9ECBFF">'Position'</span><span style="color:#E1E4E8">, { x: </span><span style="color:#79B8FF">200</span><span style="color:#E1E4E8">, y: </span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">addComponent</span><span style="color:#E1E4E8">(obstacle1, </span><span style="color:#9ECBFF">'Sprite'</span><span style="color:#E1E4E8">, { sprite: rock1 });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">addComponent</span><span style="color:#E1E4E8">(obstacle1, </span><span style="color:#9ECBFF">'Collider'</span><span style="color:#E1E4E8">, {});</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> obstacle2</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">createEntity</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> rock2</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.physics.add.</span><span style="color:#B392F0">staticSprite</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">300</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">150</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'rock'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">addComponent</span><span style="color:#E1E4E8">(obstacle2, </span><span style="color:#9ECBFF">'Position'</span><span style="color:#E1E4E8">, { x: </span><span style="color:#79B8FF">300</span><span style="color:#E1E4E8">, y: </span><span style="color:#79B8FF">150</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">addComponent</span><span style="color:#E1E4E8">(obstacle2, </span><span style="color:#9ECBFF">'Sprite'</span><span style="color:#E1E4E8">, { sprite: rock2 });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">addComponent</span><span style="color:#E1E4E8">(obstacle2, </span><span style="color:#9ECBFF">'Collider'</span><span style="color:#E1E4E8">, {});</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Add systems</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">addSystem</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">new</span><span style="color:#B392F0"> MovementSystem</span><span style="color:#E1E4E8">());</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">addSystem</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">new</span><span style="color:#B392F0"> AnimationSystem</span><span style="color:#E1E4E8">());</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">addSystem</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">new</span><span style="color:#B392F0"> CollisionSystem</span><span style="color:#E1E4E8">());</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  update</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#6A737D">    // Handle input for player</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> velocity</span><span style="color:#F97583"> =</span><span style="color:#E1E4E8"> { dx: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, dy: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.left?.isDown) velocity.dx </span><span style="color:#F97583">=</span><span style="color:#F97583"> -</span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.right?.isDown) velocity.dx </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> 100</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.up?.isDown) velocity.dy </span><span style="color:#F97583">=</span><span style="color:#F97583"> -</span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.down?.isDown) velocity.dy </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> 100</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#6A737D">    // Update player velocity component</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> velComp</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.world[</span><span style="color:#9ECBFF">'components'</span><span style="color:#E1E4E8">].</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'Velocity'</span><span style="color:#E1E4E8">)?.</span><span style="color:#B392F0">get</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.playerEntity) </span><span style="color:#F97583">as</span><span style="color:#B392F0"> Velocity</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (velComp) {</span></span>
+<span class="line"><span style="color:#E1E4E8">      velComp.dx </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> velocity.dx;</span></span>
+<span class="line"><span style="color:#E1E4E8">      velComp.dy </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> velocity.dy;</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.world.</span><span style="color:#B392F0">update</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span></code></pre>
+<h3 id="critical-evaluation-1">Critical Evaluation</h3>
+<ul>
+<li><strong>Benefits:</strong>
+<ul>
+<li>Extremely flexible; new behaviors are added by composing components and systems.</li>
+<li>Efficient for games with many similar objects (e.g., tiles, enemies, projectiles).</li>
+<li>Decouples data and behavior, making code reusable and testable.</li>
+</ul>
+</li>
+<li><strong>Drawbacks:</strong>
+<ul>
+<li>Can be overkill for small/simple games.</li>
+<li>More boilerplate and indirection; debugging can be harder.</li>
+<li>Requires careful management of component data and system order.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="hexagonal-architecture-sample--evaluation">Hexagonal Architecture: Sample &#x26; Evaluation</h2>
+<ul>
+<li><strong>Focus:</strong> Clear separation of concerns, decoupling domain logic from frameworks and external systems.</li>
+<li><strong>Benefits:</strong>
+<ul>
+<li>Highly testable and flexible codebase.</li>
+<li>Easy to swap out frameworks, input methods, or rendering engines.</li>
+<li>Scales well for large, complex, or long-lived projects.</li>
+</ul>
+</li>
+<li><strong>What it solves:</strong>
+<ul>
+<li>Prevents framework lock-in and tangled dependencies.</li>
+<li>Enables robust testing and modularity.</li>
+</ul>
+</li>
+</ul>
+<h3 id="sample-implementation-ports--adapters-modularized-improved-separation">Sample Implementation (Ports &#x26; Adapters, Modularized, Improved Separation)</h3>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#6A737D">// domain/Player.ts</span></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#F97583"> class</span><span style="color:#B392F0"> Player</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#FFAB70">  x</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 100</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#FFAB70">  y</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 100</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#FFAB70">  lastDirection</span><span style="color:#F97583">:</span><span style="color:#E1E4E8"> { </span><span style="color:#FFAB70">dx</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">; </span><span style="color:#FFAB70">dy</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8"> } </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> { dx: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, dy: </span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#B392F0">  move</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">dx</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">dy</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (dx </span><span style="color:#F97583">!==</span><span style="color:#79B8FF"> 0</span><span style="color:#F97583"> ||</span><span style="color:#E1E4E8"> dy </span><span style="color:#F97583">!==</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#79B8FF">      this</span><span style="color:#E1E4E8">.lastDirection </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> { dx, dy };</span></span>
+<span class="line"><span style="color:#E1E4E8">    }</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.x </span><span style="color:#F97583">+=</span><span style="color:#E1E4E8"> dx;</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.y </span><span style="color:#F97583">+=</span><span style="color:#E1E4E8"> dy;</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// ports/RendererPort.ts</span></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#F97583"> interface</span><span style="color:#B392F0"> RendererPort</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#B392F0">  drawPlayer</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">x</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">y</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">anim</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> string</span><span style="color:#E1E4E8">)</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> void</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// ports/InputPort.ts</span></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#F97583"> interface</span><span style="color:#B392F0"> InputPort</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#B392F0">  getDirection</span><span style="color:#E1E4E8">()</span><span style="color:#F97583">:</span><span style="color:#E1E4E8"> { </span><span style="color:#FFAB70">dx</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">; </span><span style="color:#FFAB70">dy</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// adapters/PhaserRenderer.ts</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> { RendererPort } </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> "../ports/RendererPort"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> Phaser </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> "phaser"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#F97583"> class</span><span style="color:#B392F0"> PhaserRenderer</span><span style="color:#F97583"> implements</span><span style="color:#B392F0"> RendererPort</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  constructor</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">private</span><span style="color:#FFAB70"> scene</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Scene</span><span style="color:#E1E4E8">, </span><span style="color:#F97583">private</span><span style="color:#FFAB70"> sprite</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">GameObjects</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Sprite</span><span style="color:#E1E4E8">) {}</span></span>
+<span class="line"><span style="color:#B392F0">  drawPlayer</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">x</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">y</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">anim</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> string</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.sprite.</span><span style="color:#B392F0">setPosition</span><span style="color:#E1E4E8">(x, y);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.sprite.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(anim, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// adapters/KeyboardInput.ts</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> { InputPort } </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> "../ports/InputPort"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> Phaser </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> "phaser"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#F97583"> class</span><span style="color:#B392F0"> KeyboardInput</span><span style="color:#F97583"> implements</span><span style="color:#B392F0"> InputPort</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> cursors</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Types</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Input</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Keyboard</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">CursorKeys</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  constructor</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">scene</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Scene</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.cursors </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> scene.input.keyboard.</span><span style="color:#B392F0">createCursorKeys</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#B392F0">  getDirection</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.left?.isDown) </span><span style="color:#F97583">return</span><span style="color:#E1E4E8"> { dx: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8">, dy: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.right?.isDown) </span><span style="color:#F97583">return</span><span style="color:#E1E4E8"> { dx: </span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8">, dy: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.up?.isDown) </span><span style="color:#F97583">return</span><span style="color:#E1E4E8"> { dx: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, dy: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.down?.isDown) </span><span style="color:#F97583">return</span><span style="color:#E1E4E8"> { dx: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, dy: </span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#F97583">    return</span><span style="color:#E1E4E8"> { dx: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, dy: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8"> };</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// application/GameLoop.ts</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> { Player } </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> "../domain/Player"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> { RendererPort } </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> "../ports/RendererPort"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> { InputPort } </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> "../ports/InputPort"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">function</span><span style="color:#B392F0"> getAnimationKey</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">dx</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">dy</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">lastDirection</span><span style="color:#F97583">:</span><span style="color:#E1E4E8"> { </span><span style="color:#FFAB70">dx</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">; </span><span style="color:#FFAB70">dy</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8"> })</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> string</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  if</span><span style="color:#E1E4E8"> (dx </span><span style="color:#F97583">===</span><span style="color:#79B8FF"> 0</span><span style="color:#F97583"> &#x26;&#x26;</span><span style="color:#E1E4E8"> dy </span><span style="color:#F97583">===</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#6A737D">    // Idle animation based on last direction</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (lastDirection.dx </span><span style="color:#F97583">===</span><span style="color:#F97583"> -</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8">) </span><span style="color:#F97583">return</span><span style="color:#9ECBFF"> "idle-left"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (lastDirection.dx </span><span style="color:#F97583">===</span><span style="color:#79B8FF"> 1</span><span style="color:#E1E4E8">) </span><span style="color:#F97583">return</span><span style="color:#9ECBFF"> "idle-right"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (lastDirection.dy </span><span style="color:#F97583">===</span><span style="color:#F97583"> -</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8">) </span><span style="color:#F97583">return</span><span style="color:#9ECBFF"> "idle-up"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    return</span><span style="color:#9ECBFF"> "idle-down"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#F97583">  if</span><span style="color:#E1E4E8"> (dx </span><span style="color:#F97583">===</span><span style="color:#F97583"> -</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8">) </span><span style="color:#F97583">return</span><span style="color:#9ECBFF"> "walk-left"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  if</span><span style="color:#E1E4E8"> (dx </span><span style="color:#F97583">===</span><span style="color:#79B8FF"> 1</span><span style="color:#E1E4E8">) </span><span style="color:#F97583">return</span><span style="color:#9ECBFF"> "walk-right"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  if</span><span style="color:#E1E4E8"> (dy </span><span style="color:#F97583">===</span><span style="color:#F97583"> -</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8">) </span><span style="color:#F97583">return</span><span style="color:#9ECBFF"> "walk-up"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  if</span><span style="color:#E1E4E8"> (dy </span><span style="color:#F97583">===</span><span style="color:#79B8FF"> 1</span><span style="color:#E1E4E8">) </span><span style="color:#F97583">return</span><span style="color:#9ECBFF"> "walk-down"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  return</span><span style="color:#9ECBFF"> "idle-down"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#F97583"> class</span><span style="color:#B392F0"> GameLoop</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  constructor</span><span style="color:#E1E4E8">(</span></span>
+<span class="line"><span style="color:#F97583">    private</span><span style="color:#FFAB70"> player</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Player</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#F97583">    private</span><span style="color:#FFAB70"> renderer</span><span style="color:#F97583">:</span><span style="color:#B392F0"> RendererPort</span><span style="color:#E1E4E8">,</span></span>
+<span class="line"><span style="color:#F97583">    private</span><span style="color:#FFAB70"> input</span><span style="color:#F97583">:</span><span style="color:#B392F0"> InputPort</span></span>
+<span class="line"><span style="color:#E1E4E8">  ) {}</span></span>
+<span class="line"><span style="color:#B392F0">  update</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#E1E4E8"> { </span><span style="color:#79B8FF">dx</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">dy</span><span style="color:#E1E4E8"> } </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.input.</span><span style="color:#B392F0">getDirection</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.player.</span><span style="color:#B392F0">move</span><span style="color:#E1E4E8">(dx, dy);</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> anim</span><span style="color:#F97583"> =</span><span style="color:#B392F0"> getAnimationKey</span><span style="color:#E1E4E8">(dx, dy, </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.player.lastDirection);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.renderer.</span><span style="color:#B392F0">drawPlayer</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.player.x, </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.player.y, anim);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// scenes/MainScene.ts</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> Phaser </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> "phaser"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> { Player } </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> "../domain/Player"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> { PhaserRenderer } </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> "../adapters/PhaserRenderer"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> { KeyboardInput } </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> "../adapters/KeyboardInput"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> { GameLoop } </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> "../application/GameLoop"</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#F97583"> class</span><span style="color:#B392F0"> MainScene</span><span style="color:#F97583"> extends</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Scene</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> gameLoop</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> GameLoop</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> playerSprite</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">GameObjects</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Sprite</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  preload</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.load.</span><span style="color:#B392F0">spritesheet</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"player"</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">"player.png"</span><span style="color:#E1E4E8">, { frameWidth: </span><span style="color:#79B8FF">32</span><span style="color:#E1E4E8">, frameHeight: </span><span style="color:#79B8FF">48</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.load.</span><span style="color:#B392F0">image</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">"rock"</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">"rock.png"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  create</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.playerSprite </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.physics.add.</span><span style="color:#B392F0">sprite</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">"player"</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.playerSprite.</span><span style="color:#B392F0">setCollideWorldBounds</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#6A737D">    // ...obstacle setup and collision as before...</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> player</span><span style="color:#F97583"> =</span><span style="color:#F97583"> new</span><span style="color:#B392F0"> Player</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> renderer</span><span style="color:#F97583"> =</span><span style="color:#F97583"> new</span><span style="color:#B392F0"> PhaserRenderer</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.playerSprite);</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> input</span><span style="color:#F97583"> =</span><span style="color:#F97583"> new</span><span style="color:#B392F0"> KeyboardInput</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.gameLoop </span><span style="color:#F97583">=</span><span style="color:#F97583"> new</span><span style="color:#B392F0"> GameLoop</span><span style="color:#E1E4E8">(player, renderer, input);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  update</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.gameLoop.</span><span style="color:#B392F0">update</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span></code></pre>
+<h3 id="critical-evaluation-2">Critical Evaluation</h3>
+<ul>
+<li><strong>Benefits:</strong>
+<ul>
+<li>Clear separation of concerns: input, domain logic, and animation/presentation are modular and testable.</li>
+<li>Animation selection is decoupled from input, following best practices.</li>
+<li>Easy to extend (e.g., add AI, new input types, or swap out rendering engine).</li>
+<li>Domain logic is decoupled from Phaser, making porting and testing easier.</li>
+</ul>
+</li>
+<li><strong>Drawbacks:</strong>
+<ul>
+<li>More boilerplate and indirection, especially for small/simple games.</li>
+<li>Can feel over-engineered if the game remains simple.</li>
+<li>Slightly slower to prototype and iterate due to extra layers.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="model-view-controller-mvc-sample--evaluation">Model-View-Controller (MVC): Sample &#x26; Evaluation</h2>
+<ul>
+<li><strong>Focus:</strong> Separates application logic (model), user interface (view), and input handling (controller).</li>
+<li><strong>Benefits:</strong>
+<ul>
+<li>Clear separation of concerns; UI and logic can evolve independently.</li>
+<li>Multiple views can represent the same model.</li>
+<li>Well-suited for UI-heavy or tool-driven games.</li>
+</ul>
+</li>
+<li><strong>What it solves:</strong>
+<ul>
+<li>Keeps UI code and business/game logic separate.</li>
+<li>Makes it easier to test and maintain code.</li>
+</ul>
+</li>
+</ul>
+<h3 id="sample-implementation-mvc">Sample Implementation (MVC)</h3>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#6A737D">// --- Model ---</span></span>
+<span class="line"><span style="color:#F97583">class</span><span style="color:#B392F0"> PlayerModel</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#FFAB70">  x</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 100</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#FFAB70">  y</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 100</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#FFAB70">  dx</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#FFAB70">  dy</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#B392F0">  move</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">dx</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">dy</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.dx </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> dx;</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.dy </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> dy;</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.x </span><span style="color:#F97583">+=</span><span style="color:#E1E4E8"> dx;</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.y </span><span style="color:#F97583">+=</span><span style="color:#E1E4E8"> dy;</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// --- View ---</span></span>
+<span class="line"><span style="color:#F97583">class</span><span style="color:#B392F0"> PlayerView</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  constructor</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">private</span><span style="color:#FFAB70"> sprite</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Physics</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Arcade</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Sprite</span><span style="color:#E1E4E8">) {}</span></span>
+<span class="line"><span style="color:#B392F0">  render</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">x</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">y</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">dx</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">dy</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.sprite.</span><span style="color:#B392F0">setPosition</span><span style="color:#E1E4E8">(x, y);</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (dx </span><span style="color:#F97583">&#x3C;</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.sprite.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'walk-left'</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">    else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (dx </span><span style="color:#F97583">></span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.sprite.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'walk-right'</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">    else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (dy </span><span style="color:#F97583">&#x3C;</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.sprite.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'walk-up'</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">    else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (dy </span><span style="color:#F97583">></span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.sprite.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'walk-down'</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">    else</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.sprite.</span><span style="color:#B392F0">setVelocity</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// --- Controller ---</span></span>
+<span class="line"><span style="color:#F97583">class</span><span style="color:#B392F0"> PlayerController</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  constructor</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">private</span><span style="color:#FFAB70"> model</span><span style="color:#F97583">:</span><span style="color:#B392F0"> PlayerModel</span><span style="color:#E1E4E8">, </span><span style="color:#F97583">private</span><span style="color:#FFAB70"> view</span><span style="color:#F97583">:</span><span style="color:#B392F0"> PlayerView</span><span style="color:#E1E4E8">, </span><span style="color:#F97583">private</span><span style="color:#FFAB70"> cursors</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Types</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Input</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Keyboard</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">CursorKeys</span><span style="color:#E1E4E8">) {}</span></span>
+<span class="line"><span style="color:#B392F0">  update</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> speed</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 100</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> dx </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">, dy </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.left?.isDown) dx </span><span style="color:#F97583">=</span><span style="color:#F97583"> -</span><span style="color:#E1E4E8">speed;</span></span>
+<span class="line"><span style="color:#F97583">    else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.right?.isDown) dx </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> speed;</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.up?.isDown) dy </span><span style="color:#F97583">=</span><span style="color:#F97583"> -</span><span style="color:#E1E4E8">speed;</span></span>
+<span class="line"><span style="color:#F97583">    else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.down?.isDown) dy </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> speed;</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.model.</span><span style="color:#B392F0">move</span><span style="color:#E1E4E8">(dx, dy);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.view.</span><span style="color:#B392F0">render</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.model.x, </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.model.y, dx, dy);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// --- Phaser Scene Integration ---</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> Phaser </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> 'phaser'</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#F97583"> class</span><span style="color:#B392F0"> MainScene</span><span style="color:#F97583"> extends</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Scene</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> playerModel</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> PlayerModel</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> playerView</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> PlayerView</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> playerController</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> PlayerController</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> cursors</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Types</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Input</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Keyboard</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">CursorKeys</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> obstacles</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Physics</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Arcade</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">StaticGroup</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  preload</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.load.</span><span style="color:#B392F0">spritesheet</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'player.png'</span><span style="color:#E1E4E8">, { frameWidth: </span><span style="color:#79B8FF">32</span><span style="color:#E1E4E8">, frameHeight: </span><span style="color:#79B8FF">48</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.load.</span><span style="color:#B392F0">image</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'rock'</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'rock.png'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  create</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#6A737D">    // Player sprite with physics</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> playerSprite</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.physics.add.</span><span style="color:#B392F0">sprite</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">    playerSprite.</span><span style="color:#B392F0">setCollideWorldBounds</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Define player walking animations</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({ key: </span><span style="color:#9ECBFF">'walk-left'</span><span style="color:#E1E4E8">, frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">9</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">11</span><span style="color:#E1E4E8"> }), frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">, repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({ key: </span><span style="color:#9ECBFF">'walk-right'</span><span style="color:#E1E4E8">, frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">6</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">8</span><span style="color:#E1E4E8"> }), frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">, repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({ key: </span><span style="color:#9ECBFF">'walk-up'</span><span style="color:#E1E4E8">, frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">3</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">5</span><span style="color:#E1E4E8"> }), frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">, repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({ key: </span><span style="color:#9ECBFF">'walk-down'</span><span style="color:#E1E4E8">, frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">2</span><span style="color:#E1E4E8"> }), frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">, repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Input</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.cursors </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.input.keyboard.</span><span style="color:#B392F0">createCursorKeys</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Add obstacles (e.g., rocks)</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.obstacles </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.physics.add.</span><span style="color:#B392F0">staticGroup</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.obstacles.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">200</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'rock'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.obstacles.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">300</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">150</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'rock'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Collision detection</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.physics.add.</span><span style="color:#B392F0">collider</span><span style="color:#E1E4E8">(playerSprite, </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.obstacles);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // MVC wiring</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.playerModel </span><span style="color:#F97583">=</span><span style="color:#F97583"> new</span><span style="color:#B392F0"> PlayerModel</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.playerView </span><span style="color:#F97583">=</span><span style="color:#F97583"> new</span><span style="color:#B392F0"> PlayerView</span><span style="color:#E1E4E8">(playerSprite);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.playerController </span><span style="color:#F97583">=</span><span style="color:#F97583"> new</span><span style="color:#B392F0"> PlayerController</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.playerModel, </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.playerView, </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  update</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.playerController.</span><span style="color:#B392F0">update</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span></code></pre>
+<h3 id="critical-evaluation-3">Critical Evaluation</h3>
+<ul>
+<li><strong>Benefits:</strong>
+<ul>
+<li>Clear separation of data, presentation, and input logic.</li>
+<li>Easy to swap out or test views and controllers independently.</li>
+<li>Well-suited for games/tools with complex UI or multiple representations of state.</li>
+</ul>
+</li>
+<li><strong>Drawbacks:</strong>
+<ul>
+<li>Can be verbose for simple games.</li>
+<li>May require extra glue code to synchronize model and view.</li>
+<li>Not always a natural fit for real-time, highly interactive games.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="event-driven--observer-pattern-sample--evaluation">Event-Driven / Observer Pattern: Sample &#x26; Evaluation</h2>
+<ul>
+<li><strong>Focus:</strong> Components communicate by emitting and listening for events; observer pattern enables one-to-many notification of state changes.</li>
+<li><strong>Benefits:</strong>
+<ul>
+<li>Decouples components; emitters and listeners don’t need to know about each other.</li>
+<li>Enables flexible, dynamic interactions and extensibility.</li>
+<li>Well-suited for UI, input, and game state changes.</li>
+</ul>
+</li>
+<li><strong>What it solves:</strong>
+<ul>
+<li>Reduces tight coupling between systems.</li>
+<li>Makes it easy to add new reactions to events without modifying existing code.</li>
+</ul>
+</li>
+</ul>
+<h3 id="sample-implementation-observerevent-driven">Sample Implementation (Observer/Event-Driven)</h3>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#6A737D">// --- Subject (Observable) ---</span></span>
+<span class="line"><span style="color:#F97583">class</span><span style="color:#B392F0"> Player</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> observers</span><span style="color:#F97583">:</span><span style="color:#E1E4E8"> ((</span><span style="color:#FFAB70">event</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> string</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">data</span><span style="color:#F97583">?:</span><span style="color:#79B8FF"> any</span><span style="color:#E1E4E8">) </span><span style="color:#F97583">=></span><span style="color:#79B8FF"> void</span><span style="color:#E1E4E8">)[] </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> [];</span></span>
+<span class="line"><span style="color:#FFAB70">  x</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 100</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#FFAB70">  y</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 100</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#FFAB70">  dx</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#FFAB70">  dy</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#B392F0">  move</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">dx</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">dy</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> number</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.dx </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> dx;</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.dy </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> dy;</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.x </span><span style="color:#F97583">+=</span><span style="color:#E1E4E8"> dx;</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.y </span><span style="color:#F97583">+=</span><span style="color:#E1E4E8"> dy;</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">notify</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'move'</span><span style="color:#E1E4E8">, { x: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.x, y: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.y, dx, dy });</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#B392F0">  on</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">event</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> string</span><span style="color:#E1E4E8">, </span><span style="color:#B392F0">callback</span><span style="color:#F97583">:</span><span style="color:#E1E4E8"> (</span><span style="color:#FFAB70">event</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> string</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">data</span><span style="color:#F97583">?:</span><span style="color:#79B8FF"> any</span><span style="color:#E1E4E8">) </span><span style="color:#F97583">=></span><span style="color:#79B8FF"> void</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.observers.</span><span style="color:#B392F0">push</span><span style="color:#E1E4E8">(callback);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#B392F0">  notify</span><span style="color:#E1E4E8">(</span><span style="color:#FFAB70">event</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> string</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">data</span><span style="color:#F97583">?:</span><span style="color:#79B8FF"> any</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#F97583">    for</span><span style="color:#E1E4E8"> (</span><span style="color:#F97583">const</span><span style="color:#79B8FF"> cb</span><span style="color:#F97583"> of</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.observers) </span><span style="color:#B392F0">cb</span><span style="color:#E1E4E8">(event, data);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// --- Observer (View) ---</span></span>
+<span class="line"><span style="color:#F97583">class</span><span style="color:#B392F0"> PlayerView</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  constructor</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">private</span><span style="color:#FFAB70"> sprite</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Physics</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Arcade</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Sprite</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">player</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Player</span><span style="color:#E1E4E8">) {</span></span>
+<span class="line"><span style="color:#E1E4E8">    player.</span><span style="color:#B392F0">on</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'move'</span><span style="color:#E1E4E8">, (</span><span style="color:#FFAB70">_</span><span style="color:#E1E4E8">, </span><span style="color:#FFAB70">data</span><span style="color:#E1E4E8">) </span><span style="color:#F97583">=></span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#79B8FF">      this</span><span style="color:#E1E4E8">.sprite.</span><span style="color:#B392F0">setPosition</span><span style="color:#E1E4E8">(data.x, data.y);</span></span>
+<span class="line"><span style="color:#6A737D">      // Animation based on direction</span></span>
+<span class="line"><span style="color:#F97583">      if</span><span style="color:#E1E4E8"> (data.dx </span><span style="color:#F97583">&#x3C;</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.sprite.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'walk-left'</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">      else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (data.dx </span><span style="color:#F97583">></span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.sprite.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'walk-right'</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">      else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (data.dy </span><span style="color:#F97583">&#x3C;</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.sprite.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'walk-up'</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">      else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (data.dy </span><span style="color:#F97583">></span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">) </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.sprite.anims.</span><span style="color:#B392F0">play</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'walk-down'</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#F97583">      else</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.sprite.</span><span style="color:#B392F0">setVelocity</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">    });</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// --- Controller ---</span></span>
+<span class="line"><span style="color:#F97583">class</span><span style="color:#B392F0"> PlayerController</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  constructor</span><span style="color:#E1E4E8">(</span><span style="color:#F97583">private</span><span style="color:#FFAB70"> player</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Player</span><span style="color:#E1E4E8">, </span><span style="color:#F97583">private</span><span style="color:#FFAB70"> cursors</span><span style="color:#F97583">:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Types</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Input</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Keyboard</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">CursorKeys</span><span style="color:#E1E4E8">) {}</span></span>
+<span class="line"><span style="color:#B392F0">  update</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> speed</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> 100</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    let</span><span style="color:#E1E4E8"> dx </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">, dy </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> 0</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.left?.isDown) dx </span><span style="color:#F97583">=</span><span style="color:#F97583"> -</span><span style="color:#E1E4E8">speed;</span></span>
+<span class="line"><span style="color:#F97583">    else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.right?.isDown) dx </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> speed;</span></span>
+<span class="line"><span style="color:#F97583">    if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.up?.isDown) dy </span><span style="color:#F97583">=</span><span style="color:#F97583"> -</span><span style="color:#E1E4E8">speed;</span></span>
+<span class="line"><span style="color:#F97583">    else</span><span style="color:#F97583"> if</span><span style="color:#E1E4E8"> (</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors.down?.isDown) dy </span><span style="color:#F97583">=</span><span style="color:#E1E4E8"> speed;</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.player.</span><span style="color:#B392F0">move</span><span style="color:#E1E4E8">(dx, dy);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">// --- Phaser Scene Integration ---</span></span>
+<span class="line"><span style="color:#F97583">import</span><span style="color:#E1E4E8"> Phaser </span><span style="color:#F97583">from</span><span style="color:#9ECBFF"> 'phaser'</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#F97583">export</span><span style="color:#F97583"> class</span><span style="color:#B392F0"> MainScene</span><span style="color:#F97583"> extends</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Scene</span><span style="color:#E1E4E8"> {</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> player</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> Player</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> playerView</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> PlayerView</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> playerController</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> PlayerController</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> cursors</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Types</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Input</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Keyboard</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">CursorKeys</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"><span style="color:#F97583">  private</span><span style="color:#FFAB70"> obstacles</span><span style="color:#F97583">!:</span><span style="color:#B392F0"> Phaser</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Physics</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">Arcade</span><span style="color:#E1E4E8">.</span><span style="color:#B392F0">StaticGroup</span><span style="color:#E1E4E8">;</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  preload</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.load.</span><span style="color:#B392F0">spritesheet</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'player.png'</span><span style="color:#E1E4E8">, { frameWidth: </span><span style="color:#79B8FF">32</span><span style="color:#E1E4E8">, frameHeight: </span><span style="color:#79B8FF">48</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.load.</span><span style="color:#B392F0">image</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'rock'</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'rock.png'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  create</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#6A737D">    // Player sprite with physics</span></span>
+<span class="line"><span style="color:#F97583">    const</span><span style="color:#79B8FF"> playerSprite</span><span style="color:#F97583"> =</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.physics.add.</span><span style="color:#B392F0">sprite</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#E1E4E8">    playerSprite.</span><span style="color:#B392F0">setCollideWorldBounds</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">true</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Define player walking animations</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({ key: </span><span style="color:#9ECBFF">'walk-left'</span><span style="color:#E1E4E8">, frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">9</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">11</span><span style="color:#E1E4E8"> }), frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">, repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({ key: </span><span style="color:#9ECBFF">'walk-right'</span><span style="color:#E1E4E8">, frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">6</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">8</span><span style="color:#E1E4E8"> }), frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">, repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({ key: </span><span style="color:#9ECBFF">'walk-up'</span><span style="color:#E1E4E8">, frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">3</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">5</span><span style="color:#E1E4E8"> }), frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">, repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">({ key: </span><span style="color:#9ECBFF">'walk-down'</span><span style="color:#E1E4E8">, frames: </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.anims.</span><span style="color:#B392F0">generateFrameNumbers</span><span style="color:#E1E4E8">(</span><span style="color:#9ECBFF">'player'</span><span style="color:#E1E4E8">, { start: </span><span style="color:#79B8FF">0</span><span style="color:#E1E4E8">, end: </span><span style="color:#79B8FF">2</span><span style="color:#E1E4E8"> }), frameRate: </span><span style="color:#79B8FF">10</span><span style="color:#E1E4E8">, repeat: </span><span style="color:#F97583">-</span><span style="color:#79B8FF">1</span><span style="color:#E1E4E8"> });</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Input</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.cursors </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.input.keyboard.</span><span style="color:#B392F0">createCursorKeys</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Add obstacles (e.g., rocks)</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.obstacles </span><span style="color:#F97583">=</span><span style="color:#79B8FF"> this</span><span style="color:#E1E4E8">.physics.add.</span><span style="color:#B392F0">staticGroup</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.obstacles.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">200</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">100</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'rock'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.obstacles.</span><span style="color:#B392F0">create</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">300</span><span style="color:#E1E4E8">, </span><span style="color:#79B8FF">150</span><span style="color:#E1E4E8">, </span><span style="color:#9ECBFF">'rock'</span><span style="color:#E1E4E8">);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Collision detection</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.physics.add.</span><span style="color:#B392F0">collider</span><span style="color:#E1E4E8">(playerSprite, </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.obstacles);</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#6A737D">    // Event-driven wiring</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.player </span><span style="color:#F97583">=</span><span style="color:#F97583"> new</span><span style="color:#B392F0"> Player</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.playerView </span><span style="color:#F97583">=</span><span style="color:#F97583"> new</span><span style="color:#B392F0"> PlayerView</span><span style="color:#E1E4E8">(playerSprite, </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.player);</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.playerController </span><span style="color:#F97583">=</span><span style="color:#F97583"> new</span><span style="color:#B392F0"> PlayerController</span><span style="color:#E1E4E8">(</span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.player, </span><span style="color:#79B8FF">this</span><span style="color:#E1E4E8">.cursors);</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0">  update</span><span style="color:#E1E4E8">() {</span></span>
+<span class="line"><span style="color:#79B8FF">    this</span><span style="color:#E1E4E8">.playerController.</span><span style="color:#B392F0">update</span><span style="color:#E1E4E8">();</span></span>
+<span class="line"><span style="color:#E1E4E8">  }</span></span>
+<span class="line"><span style="color:#E1E4E8">}</span></span></code></pre>
+<h3 id="critical-evaluation-4">Critical Evaluation</h3>
+<ul>
+<li><strong>Benefits:</strong>
+<ul>
+<li>Decouples state changes from reactions; easy to add new listeners.</li>
+<li>Flexible and extensible; new features can subscribe to events without modifying core logic.</li>
+<li>Well-suited for UI, input, and game state changes.</li>
+</ul>
+</li>
+<li><strong>Drawbacks:</strong>
+<ul>
+<li>Can lead to hard-to-trace event chains and debugging challenges.</li>
+<li>Risk of memory leaks if observers are not properly removed.</li>
+<li>Overuse can make codebase harder to reason about.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="related-documents">Related Documents</h2>
+<p>These companion documents dive deeper into specific subsystems referenced (generation, persistence, performance, and testing strategy):</p>
+<ul>
+<li><a href="./PERSISTENCE.md">Persistence &#x26; Diff Format</a> – Sparse diff storage, versioning, and save semantics.</li>
+<li><a href="./BIOMES.md">Biomes</a> – Biome registry, deterministic selection, and palette rationale.</li>
+<li><a href="./PERFORMANCE.md">Performance &#x26; Instrumentation</a> – Dirty batching, throttling, metrics, dev overlay.</li>
+<li><a href="./TESTING.md">Testing</a> – Test stack, coverage areas, and future targets.</li>
+</ul>
+<p>Use this architecture document for high‑level structural direction; consult the linked docs for implementation details and operational practices.</p> </div> </main> <div class="backdrop"></div> <div class="app-actions"> <label for="theme-toggle" class="theme-toggle unified-button" role="button" aria-roledescription="Toggle between dark and light mode" aria-label="Toggle between dark and light mode" title="Toggle between dark and light mode"> <input type="checkbox" id="theme-toggle"> <svg class="theme-toggle-icon light" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"> <path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"></path> </svg> <svg class="theme-toggle-icon dark" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"> <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"></path> </svg> </label> <label for="mobile-menu-toggle" class="mobile-menu-toggle unified-button" role="button" aria-roledescription="Open and close the mobile menu" aria-label="Open and close the mobile menu" title="Open and close the mobile menu"> <input type="checkbox" id="mobile-menu-toggle"> <span class="mobile-menu-toggle-icon closed">☰</span> <span class="mobile-menu-toggle-icon opened">✕</span> </label> </div> </div> </body></html>

@@ -1,0 +1,25 @@
+{
+  "frames": [
+    { "name": "snow" },
+    { "name": "light_cyan" },
+    { "name": "light_magenta" },
+    { "name": "yellow" },
+    { "name": "light_red" },
+    { "name": "grass" },
+    { "name": "water" },
+    { "name": "light_grey" },
+    { "name": "grey" },
+    { "name": "cyan" },
+    { "name": "magenta" },
+    { "name": "brown" },
+    { "name": "red" },
+    { "name": "green" },
+    { "name": "blue" },
+    { "name": "black" }
+  ],
+  "meta": {
+    "image": "blocks.png",
+    "size": { "w": 384, "h": 96 },
+    "scale": "1"
+  }
+}

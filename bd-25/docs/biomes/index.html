@@ -1,0 +1,47 @@
+<!DOCTYPE html><html data-theme="dark"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta http-equiv="X-UA-Compatible" content="IE=edge"><meta name="description" content="Biomes"><meta name="author" content="MDXpress"><title>Biomes</title><link rel="icon" type="image/svg+xml" href="/bd-25/favicon.svg"><link rel="stylesheet" href="/bd-25/_astro/_slug_.FGKI9IMe.css"></head> <body> <div class="app"> <nav class="navigation"> <h1 class="navigation-header">docs</h1> <hr> <ul class="tree"> <li class="tree-node"> <a href="/bd-25/docs/architecture" class="tree-link"> <span class="tree-file-icon"></span> ARCHITECTURE.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/assets" class="tree-link"> <span class="tree-file-icon"></span> ASSETS.mdx </a>  </li><li class="tree-node"> <a href="/bd-25/docs/biomes" class="tree-link active"> <span class="tree-file-icon"></span> BIOMES.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/collectibles" class="tree-link"> <span class="tree-file-icon"></span> COLLECTIBLES.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/concept" class="tree-link"> <span class="tree-file-icon"></span> CONCEPT.mdx </a>  </li><li class="tree-node"> <a href="/bd-25/docs/crafting" class="tree-link"> <span class="tree-file-icon"></span> CRAFTING.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/features" class="tree-link"> <span class="tree-file-icon"></span> FEATURES.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/performance" class="tree-link"> <span class="tree-file-icon"></span> PERFORMANCE.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/persistence" class="tree-link"> <span class="tree-file-icon"></span> PERSISTENCE.md </a>  </li><li class="tree-node"> <a href="/bd-25/docs/testing" class="tree-link"> <span class="tree-file-icon"></span> TESTING.md </a>  </li> </ul> </nav> <main class="main-content"> <div class="doc-content"> <h1 id="biomes">Biomes</h1>
+<p>Three deterministic biomes are currently implemented:</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>Biome</th><th>Kind Description</th><th>Tile Rules</th></tr></thead><tbody><tr><td>grass</td><td>Green island</td><td>Interior = Grass, edge ring (outer ~10% radius) = Sand, water outside mask</td></tr><tr><td>desert</td><td>Sandy island</td><td>Land = Sand, water outside mask</td></tr><tr><td>snow</td><td>Snow island</td><td>Interior = Snow, edge ring = Sand, water outside mask</td></tr></tbody></table>
+<h2 id="selection-algorithm">Selection Algorithm</h2>
+<p>Biome chosen per chunk using a hash modulo registry size:</p>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="plaintext"><code><span class="line"><span>hash = hashString32(`${worldSeed}:${chunkX}:${chunkY}:biome`)</span></span>
+<span class="line"><span>biomeIndex = hash % registeredBiomes.length</span></span></code></pre>
+<p>Deterministic for a given <code>worldSeed</code> and coordinates.</p>
+<h2 id="island-shape">Island Shape</h2>
+<p>Island mask uses radial falloff + multi-scale value noise to produce elevation; <code>isLand = elevation > -0.05</code>.</p>
+<h2 id="edge-ring">Edge Ring</h2>
+<p>Edge classified where radial falloff > 0.9 producing a sand shoreline for grass &#x26; snow biomes.</p>
+<h2 id="registry">Registry</h2>
+<p><code>biomes.ts</code> currently registers:</p>
+<pre class="astro-code github-dark" style="background-color:#24292e;color:#e1e4e8; overflow-x: auto;" tabindex="0" data-language="ts"><code><span class="line"><span style="color:#F97583">interface</span><span style="color:#B392F0"> BiomeDefinition</span><span style="color:#E1E4E8"> { </span><span style="color:#FFAB70">id</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> string</span><span style="color:#E1E4E8">; </span><span style="color:#FFAB70">label</span><span style="color:#F97583">:</span><span style="color:#79B8FF"> string</span><span style="color:#E1E4E8">; </span><span style="color:#FFAB70">kind</span><span style="color:#F97583">:</span><span style="color:#9ECBFF"> 'grass'</span><span style="color:#F97583">|</span><span style="color:#9ECBFF">'desert'</span><span style="color:#F97583">|</span><span style="color:#9ECBFF">'snow'</span><span style="color:#E1E4E8">; }</span></span></code></pre>
+<p>Future: replace <code>kind</code> with richer biome config (palette, decoration rules, spawn tables).</p>
+<h2 id="future-ideas">Future Ideas</h2>
+<ul>
+<li>Matrix-based selection using moisture &#x26; temperature noise instead of pure hash.</li>
+<li>Cross-chunk blending to soften sharp biome borders.</li>
+<li>Decoration pass (trees, rocks) seeded per chunk for consistent placement.</li>
+</ul> </div> </main> <div class="backdrop"></div> <div class="app-actions"> <label for="theme-toggle" class="theme-toggle unified-button" role="button" aria-roledescription="Toggle between dark and light mode" aria-label="Toggle between dark and light mode" title="Toggle between dark and light mode"> <input type="checkbox" id="theme-toggle"> <svg class="theme-toggle-icon light" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"> <path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 0 8zM8 0a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 0zm0 13a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-1 0v-2A.5.5 0 0 1 8 13zm8-5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2a.5.5 0 0 1 .5.5zM3 8a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1 0-1h2A.5.5 0 0 1 3 8zm10.657-5.657a.5.5 0 0 1 0 .707l-1.414 1.415a.5.5 0 1 1-.707-.708l1.414-1.414a.5.5 0 0 1 .707 0zm-9.193 9.193a.5.5 0 0 1 0 .707L3.05 13.657a.5.5 0 0 1-.707-.707l1.414-1.414a.5.5 0 0 1 .707 0zm9.193 2.121a.5.5 0 0 1-.707 0l-1.414-1.414a.5.5 0 0 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .707zM4.464 4.465a.5.5 0 0 1-.707 0L2.343 3.05a.5.5 0 1 1 .707-.707l1.414 1.414a.5.5 0 0 1 0 .708z"></path> </svg> <svg class="theme-toggle-icon dark" width="16" height="16" viewBox="0 0 16 16" fill="currentColor"> <path d="M6 .278a.768.768 0 0 1 .08.858 7.208 7.208 0 0 0-.878 3.46c0 4.021 3.278 7.277 7.318 7.277.527 0 1.04-.055 1.533-.16a.787.787 0 0 1 .81.316.733.733 0 0 1-.031.893A8.349 8.349 0 0 1 8.344 16C3.734 16 0 12.286 0 7.71 0 4.266 2.114 1.312 5.124.06A.752.752 0 0 1 6 .278z"></path> </svg> </label> <label for="mobile-menu-toggle" class="mobile-menu-toggle unified-button" role="button" aria-roledescription="Open and close the mobile menu" aria-label="Open and close the mobile menu" title="Open and close the mobile menu"> <input type="checkbox" id="mobile-menu-toggle"> <span class="mobile-menu-toggle-icon closed">☰</span> <span class="mobile-menu-toggle-icon opened">✕</span> </label> </div> </div> </body></html>

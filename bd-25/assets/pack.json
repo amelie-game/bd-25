@@ -1,0 +1,23 @@
+{
+  "files": [
+    {
+      "type": "aseprite",
+      "key": "amelie",
+      "textureURL": "assets/characters/amelie-party-hat.png",
+      "atlasURL": "assets/characters/amelie.aseprite.json"
+    },
+    {
+      "type": "aseprite",
+      "key": "objects",
+      "textureURL": "assets/objects/objects.png",
+      "atlasURL": "assets/objects/objects.aseprite.json"
+    },
+    {
+      "type": "spritesheet",
+      "key": "blocks",
+      "url": "assets/tilesets/blocks.png",
+      "atlasURL": "assets/tilesets/blocks.aseprite.json",
+      "frameConfig": { "frameWidth": 48, "frameHeight": 48 }
+    }
+  ]
+}
