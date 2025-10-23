@@ -16,6 +16,8 @@ import { Pointer } from "../modules/Pointer";
 import { WorldManager } from "../modules/WorldManager";
 import { DevOverlay } from "../modules/DevOverlay";
 
+// GRASS SEED = mh1rckne-a7d04382
+
 // ===================
 // === GAME SCENE  ===
 // ===================

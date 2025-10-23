@@ -58,6 +58,9 @@ jobs:
           cp -r apps/docs/dist/* merged-dist/
           cp -r apps/amelcraft/dist/* merged-dist/
 
+      - name: Create CNAME file
+        run: echo 'game.amelie.belgar.eu' > merged-dist/CNAME
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
