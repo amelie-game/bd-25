@@ -54,11 +54,9 @@ jobs:
 
       - name: Merge dist folders
         run: |
-          mkdir -p dist
-          cp -r apps/docs/dist/* merged-dist/
-          cp -r apps/amelcraft/dist/* merged-dist/
-          mkdir dist
-          mv merged-dist dist/bd-25
+          mkdir -p dist/bd-25
+          cp -r apps/docs/dist/* dist/bd-25/
+          cp -r apps/amelcraft/dist/* dist/bd-25/
 
       - name: Create CNAME file
         run: echo 'game.amelie.belgar.eu' > dist/CNAME
