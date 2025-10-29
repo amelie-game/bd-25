@@ -18,6 +18,11 @@
       "url": "assets/tilesets/blocks.png",
       "atlasURL": "assets/tilesets/blocks.aseprite.json",
       "frameConfig": { "frameWidth": 48, "frameHeight": 48 }
+    },
+    {
+      "type": "audio",
+      "key": "happy-birthday",
+      "url": "assets/audio/happy-birthday.mp3"
     }
   ]
 }
