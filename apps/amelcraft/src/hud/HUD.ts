@@ -193,6 +193,7 @@ export class HudRoot extends HTMLElement {
   private onSelect: (value: Option) => void = () => {};
   private dropdownOpen = false;
   private showPresent = true;
+  private onPresentClick: (() => void) | null = null;
 
   set data({
     blockKeys,
@@ -200,18 +201,21 @@ export class HudRoot extends HTMLElement {
     onSelect,
     flowersCount,
     showPresent,
+    onPresentClick,
   }: {
     blockKeys: HudDropdown["options"];
     selected?: Option;
     onSelect: (value: Option) => void;
     flowersCount?: number;
     showPresent?: boolean;
+    onPresentClick?: () => void;
   }) {
     this.options = blockKeys;
     this.selected = selected ?? "collect";
     this.onSelect = onSelect;
     (this as any)._flowersCount = flowersCount ?? 0;
     this.showPresent = showPresent ?? true;
+    this.onPresentClick = onPresentClick ?? null;
     this.render();
   }
 
@@ -357,8 +361,16 @@ export class HudRoot extends HTMLElement {
       }
       presentBtn.appendChild(presentCanvas);
       presentBtn.onclick = () => {
-        // Test alert per requirement
-        window.alert("test alert");
+        if (this.onPresentClick) {
+          try {
+            this.onPresentClick();
+          } catch (e) {
+            console.error("onPresentClick error", e);
+          }
+        } else {
+          // Fallback test alert if no callback provided
+          window.alert("test alert");
+        }
       };
       controls.appendChild(presentWrapper);
     }

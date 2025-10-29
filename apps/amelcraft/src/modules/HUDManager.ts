@@ -15,6 +15,7 @@ type Params = {
   objects?: InventoryObjectSlot[]; // optional hidden resources
   selectedMode: Option;
   onSelect: (val: Option) => void;
+  onPresentClick?: () => void;
 };
 
 export class HUDManager {
@@ -23,6 +24,7 @@ export class HUDManager {
   private hudEl: HudRoot;
   private craftModal: HTMLElement | null = null;
   private lastObjects: InventoryObjectSlot[] = [];
+  private onPresentClick: (() => void) | null = null;
 
   constructor({
     inventory,
@@ -30,10 +32,12 @@ export class HUDManager {
     selectedMode,
     shell,
     onSelect,
+    onPresentClick,
   }: Params) {
     this.shell = shell;
     this.onSelect = onSelect;
     this.hudEl = document.createElement("amelcraft-hud") as HudRoot;
+    this.onPresentClick = onPresentClick ?? null;
 
     this.shell.events.on("shutdown", this.destroy.bind(this));
     this.shell.events.on("destroy", this.destroy.bind(this));
@@ -75,6 +79,7 @@ export class HUDManager {
       selected: selectedMode,
       onSelect: this.onSelect,
       flowersCount,
+      onPresentClick: this.onPresentClick ?? undefined,
     } as any;
 
     // Handle craft modal visibility based on selected mode

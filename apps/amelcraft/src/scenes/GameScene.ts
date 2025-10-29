@@ -7,6 +7,7 @@ import { TILE_SIZE } from "../constants";
 import { World } from "../modules/World"; // legacy direct world reference (single chunk)
 import { Inventory } from "../modules/Inventory";
 import { HUDManager } from "../modules/HUDManager";
+import { assets } from "../assets";
 import { Camera } from "../modules/Camera";
 import { Player } from "../modules/Player";
 import { MoveMode } from "../modes/Move";
@@ -106,6 +107,9 @@ export class GameScene extends Phaser.Scene {
       onSelect: (mode) => {
         // route selection through selectMode so modes are created/teardown correctly
         this.selectMode(mode);
+      },
+      onPresentClick: () => {
+        this.sound.play(assets.audio.HappyBirthday.key);
       },
     });
     const playerStart: [number, number] = [
