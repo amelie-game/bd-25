@@ -70,6 +70,7 @@ function extractAnimationsAndSprites(aseprite) {
 }
 
 const assetsObj = {};
+
 for (const entry of pack.files) {
   if ((entry.type === "atlas" || entry.type === "aseprite") && entry.atlasURL) {
     const fullPath = path.join(root, entry.atlasURL);
@@ -93,6 +94,15 @@ for (const entry of pack.files) {
     }
     // If no atlasURL or not found, keep the raw entry
     assetsObj[entry.key] = { key: entry.key, ...entry };
+  } else if (entry.type === "audio") {
+    if (!assetsObj.audio) {
+      assetsObj.audio = {};
+    }
+    // Handle audio assets
+    assetsObj.audio[normalizeKey(entry.key)] = {
+      key: entry.key,
+      url: entry.url,
+    };
   }
 }
 

@@ -192,22 +192,26 @@ export class HudRoot extends HTMLElement {
   private selected: Option = "move";
   private onSelect: (value: Option) => void = () => {};
   private dropdownOpen = false;
+  private showPresent = true;
 
   set data({
     blockKeys,
     selected,
     onSelect,
     flowersCount,
+    showPresent,
   }: {
     blockKeys: HudDropdown["options"];
     selected?: Option;
     onSelect: (value: Option) => void;
     flowersCount?: number;
+    showPresent?: boolean;
   }) {
     this.options = blockKeys;
     this.selected = selected ?? "collect";
     this.onSelect = onSelect;
     (this as any)._flowersCount = flowersCount ?? 0;
+    this.showPresent = showPresent ?? true;
     this.render();
   }
 
@@ -306,6 +310,57 @@ export class HudRoot extends HTMLElement {
       (badge.style as any).transform = "scale(0.85)";
       // Show count only on craft option (hidden resource indicator)
       craftOption.querySelector("button")?.appendChild(badge);
+    }
+
+    if (this.showPresent) {
+      // --- Present test button ---
+      // Custom button (not using hud-option logic) to render the Present sprite from objects atlas.
+      const presentWrapper = document.createElement("div");
+      presentWrapper.className = "with-frame with-shadow";
+      const presentBtn = document.createElement("button");
+      presentWrapper.appendChild(presentBtn);
+      const presentCanvas = document.createElement("canvas");
+      presentCanvas.width = 64;
+      presentCanvas.height = 64;
+      presentCanvas.style.borderRadius = "0.7em";
+      presentCanvas.style.background = "#222";
+      presentCanvas.style.display = "block";
+      presentCanvas.style.boxSizing = "border-box";
+      const pctx = presentCanvas.getContext("2d");
+      try {
+        if (pctx && (window as any).game?.textures) {
+          const tex = (window as any).game.textures.get("objects");
+          if (tex) {
+            const frame = tex.get("present");
+            if (
+              frame &&
+              (frame.source.image instanceof HTMLImageElement ||
+                frame.source.image instanceof HTMLCanvasElement)
+            ) {
+              const source = frame.source.image;
+              pctx.drawImage(
+                source,
+                frame.cutX,
+                frame.cutY,
+                frame.width,
+                frame.height,
+                0,
+                0,
+                64,
+                64
+              );
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Present button draw error", e);
+      }
+      presentBtn.appendChild(presentCanvas);
+      presentBtn.onclick = () => {
+        // Test alert per requirement
+        window.alert("test alert");
+      };
+      controls.appendChild(presentWrapper);
     }
   }
 
