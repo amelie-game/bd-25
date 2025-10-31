@@ -346,7 +346,14 @@ export class HudRoot extends HTMLElement {
       // --- Present test button ---
       // Custom button (not using hud-option logic) to render the Present sprite from objects atlas.
       const presentWrapper = document.createElement("div");
-      presentWrapper.className = "with-frame with-shadow";
+      // Add a specific class so we can target it later if needed.
+      presentWrapper.className = "present-wrapper with-frame with-shadow";
+      // Position independently of the HUD bottom controls in the top-right corner of the viewport.
+      presentWrapper.style.position = "fixed";
+      presentWrapper.style.top = "0.75em";
+      presentWrapper.style.right = "0.75em";
+      presentWrapper.style.display = "inline-block";
+      presentWrapper.style.zIndex = "10000"; // ensure it stays above other elements
       const presentBtn = document.createElement("button");
       presentWrapper.appendChild(presentBtn);
       const presentCanvas = document.createElement("canvas");
@@ -401,7 +408,7 @@ export class HudRoot extends HTMLElement {
           window.alert("test alert");
         }
       };
-      controls.appendChild(presentWrapper);
+      this.shadowRoot.appendChild(presentWrapper);
     }
   }
 
@@ -451,10 +458,13 @@ const rootStyle = `
   .hud-controls {
     display: flex;
     flex-direction: row;
-    flex-wrap: wrap; /* 'auto' is not a valid value; using wrap enables line breaks */
+    /* Use wrap-reverse so new rows appear above existing bottom row (bottom-up stacking) */
+    flex-wrap: wrap-reverse;
     gap: 1em;
     justify-content: center;
     align-items: end;
+    /* Ensure the collection of lines stays anchored to the bottom, letting extra rows grow upward */
+    align-content: flex-end;
     /* Pass through events for gaps between buttons */
     pointer-events: none;
   }
