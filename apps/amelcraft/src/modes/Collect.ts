@@ -17,6 +17,8 @@ export class CollectMode {
   } | null = null;
   private collectionProgress = 0;
   private collectTime = 1000; // ms
+  // Progress bar vertical offset below player feet (tweakable)
+  private progressBarOffset = TILE_SIZE * 0.6; // previously 0.15; increased to sit lower
 
   constructor(shell: GameScene) {
     this.shell = shell;
@@ -46,39 +48,50 @@ export class CollectMode {
     } else {
       this.collectionProgress = 0;
     }
-    // draw highlights/progress
+    // draw collection progress UI (now anchored to player to avoid finger occlusion on touch devices)
     if (!this.gfx) return;
     this.gfx.clear();
-    const tile = this.shell.getWorldManager().getHighlightTile();
-    if (tile) {
-      const { x, y } = tile;
-      // Draw progress bar if collecting this tile
-      if (
-        this.collecting &&
-        this.collecting.x === x &&
-        this.collecting.y === y
-      ) {
-        const sx = x * TILE_SIZE;
-        const sy = y * TILE_SIZE;
-        const barWidth = TILE_SIZE * 0.8;
-        const barHeight = 6;
-        const barX = sx + TILE_SIZE * 0.1;
-        const barY = sy - 10;
-        // Background
-        this.gfx.fillStyle(0x222222, 0.7);
-        this.gfx.fillRect(barX, barY, barWidth, barHeight);
-        // Progress
-        this.gfx.fillStyle(0x00ff00, 0.9);
-        this.gfx.fillRect(
-          barX,
-          barY,
-          barWidth * this.collectionProgress,
-          barHeight
-        );
-        // Border
-        this.gfx.lineStyle(1, 0xffffff, 0.8);
-        this.gfx.strokeRect(barX, barY, barWidth, barHeight);
-      }
+
+    if (this.collecting) {
+      // Player position
+      const [px, py] = this.shell.getPlayer().getPosition();
+      // Position bar below player feet using configurable offset
+      const barWidth = TILE_SIZE * 1.0;
+      const barHeight = 8;
+      const barX = px - barWidth / 2;
+      const barY = py + this.progressBarOffset;
+
+      // Optional: ensure on screen (basic clamp)
+      const cam = this.shell.cameras.main;
+      const viewLeft = cam.worldView.x;
+      const viewTop = cam.worldView.y;
+      const viewRight = viewLeft + cam.worldView.width;
+      const viewBottom = viewTop + cam.worldView.height;
+      const clampedX = Phaser.Math.Clamp(
+        barX,
+        viewLeft + 2,
+        viewRight - barWidth - 2
+      );
+      const clampedY = Phaser.Math.Clamp(
+        barY,
+        viewTop + 2,
+        viewBottom - barHeight - 2
+      );
+
+      // Background
+      this.gfx.fillStyle(0x222222, 0.55);
+      this.gfx.fillRect(clampedX, clampedY, barWidth, barHeight);
+      // Progress
+      this.gfx.fillStyle(0x00d200, 0.95);
+      this.gfx.fillRect(
+        clampedX,
+        clampedY,
+        barWidth * this.collectionProgress,
+        barHeight
+      );
+      // Border
+      this.gfx.lineStyle(1, 0xffffff, 0.75);
+      this.gfx.strokeRect(clampedX, clampedY, barWidth, barHeight);
     }
   }
 
