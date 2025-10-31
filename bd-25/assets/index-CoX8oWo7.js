@@ -6390,6 +6390,8 @@ return new `+this.key+`();
     gap: 1em;
     user-select: none;
     box-sizing: border-box;
+    /* Allow touches/clicks in empty HUD areas to pass through to the game canvas */
+    pointer-events: none;
   }
   .hud-dropdown-list {
     width: auto;
@@ -6404,10 +6406,13 @@ return new `+this.key+`();
   }
   .hud-controls {
     display: flex;
+    flex-direction: row;
     flex-wrap: wrap; /* 'auto' is not a valid value; using wrap enables line breaks */
     gap: 1em;
     justify-content: center;
     align-items: end;
+    /* Pass through events for gaps between buttons */
+    pointer-events: none;
   }
   button {
     background: none;
@@ -6423,6 +6428,8 @@ return new `+this.key+`();
     flex-direction: column;
     align-items: center;
     overflow: hidden;
+    /* Keep buttons interactive despite ancestor pointer-events:none */
+    pointer-events: auto;
   }
   button.selected {
     background: linear-gradient(90deg, #fff2, #fff4);
@@ -6458,6 +6465,8 @@ return new `+this.key+`();
     background: rgba(30,30,40,0.92);
     border-radius: 0.7em;
     padding: 0.7em;
+    /* Frames wrap buttons; ensure they remain interactive */
+    pointer-events: auto;
   }
   .with-shadow {
     box-shadow: 0 2px 12px #0008;
