@@ -21,33 +21,47 @@ customElements.define("hud-badge", HudBadge);
 
 // --- <hud-option> ---
 class HudOption extends HTMLElement {
+  private static applyIconStyle(icon: HTMLElement, size: number) {
+    icon.style.width = size + "px";
+    icon.style.height = size + "px";
+    icon.style["lineHeight"] = size + "px";
+    icon.style["fontSize"] = size * 0.9 + "px";
+  }
+
   private static getContent(type: unknown, count?: string | null) {
     try {
       const option = toOption(type);
+      const size = HudOption.getResponsiveSize();
 
       switch (option) {
         case "collect": {
           const icon = document.createElement("div");
           icon.className = "hud-icon";
+          HudOption.applyIconStyle(icon, size);
           icon.innerHTML = "⛏️";
           return [icon];
         }
         case "move": {
           const icon = document.createElement("div");
           icon.className = "hud-icon";
+          HudOption.applyIconStyle(icon, size);
           icon.innerHTML = "🚶";
           return [icon];
         }
         case "craft": {
           const icon = document.createElement("div");
           icon.className = "hud-icon";
+          HudOption.applyIconStyle(icon, size);
           icon.innerHTML = "⚗️"; // beaker / alchemy icon
           return [icon];
         }
         default: {
           const canvas = document.createElement("canvas");
-          canvas.width = 64;
-          canvas.height = 64;
+          // Internal resolution matches displayed size for simplicity
+          canvas.width = size;
+          canvas.height = size;
+          canvas.style.width = size + "px";
+          canvas.style.height = size + "px";
           canvas.style.borderRadius = "0.7em";
           canvas.style.background = "#222";
           canvas.style.display = "block";
@@ -67,8 +81,8 @@ class HudOption extends HTMLElement {
                   frame.height,
                   0,
                   0,
-                  64,
-                  64
+                  size,
+                  size
                 );
               }
             }
@@ -85,6 +99,18 @@ class HudOption extends HTMLElement {
       console.error("HudOption.getContent error", e);
     }
     return null;
+  }
+
+  // Determine responsive size based on window width matching CSS breakpoints
+  static getResponsiveSize(): number {
+    try {
+      const w = window.innerWidth;
+      if (w <= 400) return 36;
+      if (w <= 600) return 48;
+      return 64;
+    } catch {
+      return 64; // Fallback for non-browser/SSR contexts
+    }
   }
 
   static isDrawable(img: unknown): img is HTMLImageElement | HTMLCanvasElement {
@@ -324,8 +350,11 @@ export class HudRoot extends HTMLElement {
       const presentBtn = document.createElement("button");
       presentWrapper.appendChild(presentBtn);
       const presentCanvas = document.createElement("canvas");
-      presentCanvas.width = 64;
-      presentCanvas.height = 64;
+      const pSize = HudOption.getResponsiveSize();
+      presentCanvas.width = pSize;
+      presentCanvas.height = pSize;
+      presentCanvas.style.width = pSize + "px";
+      presentCanvas.style.height = pSize + "px";
       presentCanvas.style.borderRadius = "0.7em";
       presentCanvas.style.background = "#222";
       presentCanvas.style.display = "block";
@@ -350,8 +379,8 @@ export class HudRoot extends HTMLElement {
                 frame.height,
                 0,
                 0,
-                64,
-                64
+                pSize,
+                pSize
               );
             }
           }
@@ -394,8 +423,8 @@ const rootStyle = `
   :host(.hud) {
     position: fixed;
     bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
     z-index: 9999;
     padding: 1em;
     display: inline-flex;
@@ -404,7 +433,6 @@ const rootStyle = `
     justify-content: center;
     gap: 1em;
     user-select: none;
-    max-width: calc(100% - 2em);
     box-sizing: border-box;
   }
   .hud-dropdown-list {
@@ -420,6 +448,7 @@ const rootStyle = `
   }
   .hud-controls {
     display: flex;
+    flex-wrap: wrap; /* 'auto' is not a valid value; using wrap enables line breaks */
     gap: 1em;
     justify-content: center;
     align-items: end;
@@ -437,8 +466,6 @@ const rootStyle = `
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 64px;
-    min-height: 64px;
     overflow: hidden;
   }
   button.selected {
@@ -448,18 +475,14 @@ const rootStyle = `
     border-radius: 0.7em;
   }
   .hud-icon {
-    width: 64px;
-    height: 64px;
-    font-size: 48px;
-    line-height: 64px;
     text-align: center;
     user-select: none;
     box-sizing: border-box;
   }
   .hud-badge {
     position: absolute;
-    right: 2px;
-    bottom: 2px;
+    right: 0;
+    bottom: 0;
     background: #222c;
     color: #fff;
     font-size: 1em;
@@ -470,11 +493,9 @@ const rootStyle = `
     pointer-events: none;
   }
   @media (max-width: 600px) {
-    button { min-width: 48px; min-height: 48px; }
     .hud-badge { font-size: 0.95em; }
   }
   @media (max-width: 400px) {
-    button { min-width: 36px; min-height: 36px; }
     .hud-badge { font-size: 0.85em; }
   }
   .with-frame {

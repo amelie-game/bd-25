@@ -135,12 +135,12 @@ export class CraftModal extends HTMLElement {
     panel.className = "panel";
     this.shadowRoot.appendChild(panel);
     const title = document.createElement("h2");
-    title.textContent = "Craft Colored Sand";
+    title.textContent = "Stelle farbigen Sand her";
     panel.appendChild(title);
 
     if (!this.data) {
       const msg = document.createElement("div");
-      msg.textContent = "No inventory bound.";
+      msg.textContent = "Kein Inventar gefunden.";
       panel.appendChild(msg);
       return;
     }
@@ -152,7 +152,7 @@ export class CraftModal extends HTMLElement {
     const flowerSlots = this.data.flowers.filter((f) => f.count > 0);
     if (flowerSlots.length === 0) {
       const empty = document.createElement("div");
-      empty.textContent = "No flowers collected.";
+      empty.textContent = "Du hast noch keine Blumen gesammelt.";
       panel.appendChild(empty);
     } else {
       for (const f of flowerSlots) {
@@ -254,8 +254,8 @@ export class CraftModal extends HTMLElement {
       }
     } else {
       preview.textContent = this.selectedFlower
-        ? "No output"
-        : "Select a flower";
+        ? "Kein Ergebnis"
+        : "Wähle eine Blume aus";
     }
     panel.appendChild(preview);
 
@@ -269,10 +269,10 @@ export class CraftModal extends HTMLElement {
     const actions = document.createElement("div");
     actions.className = "actions";
     const cancelBtn = document.createElement("button");
-    cancelBtn.textContent = "Cancel";
+    cancelBtn.textContent = "Abbrechen";
     cancelBtn.onclick = () => this.close();
     const craftBtn = document.createElement("button");
-    craftBtn.textContent = "Craft";
+    craftBtn.textContent = "Herstellen";
     const canCraft =
       !validationError && this.selectedFlower !== null && outputs.length > 0;
     if (!canCraft) craftBtn.setAttribute("disabled", "");
