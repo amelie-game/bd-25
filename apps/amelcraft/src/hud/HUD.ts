@@ -218,7 +218,7 @@ export class HudRoot extends HTMLElement {
   private selected: Option = "move";
   private onSelect: (value: Option) => void = () => {};
   private dropdownOpen = false;
-  private showPresent = true;
+  private showPresent = false;
   private onPresentClick: (() => void) | null = null;
 
   set data({
@@ -240,7 +240,7 @@ export class HudRoot extends HTMLElement {
     this.selected = selected ?? "collect";
     this.onSelect = onSelect;
     (this as any)._flowersCount = flowersCount ?? 0;
-    this.showPresent = showPresent ?? true;
+    this.showPresent = showPresent ?? false;
     this.onPresentClick = onPresentClick ?? null;
     this.render();
   }

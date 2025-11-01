@@ -79,6 +79,7 @@ export class HUDManager {
       selected: selectedMode,
       onSelect: this.onSelect,
       flowersCount,
+      showPresent: this.shell.getInventory().getHasPresent(),
       onPresentClick: this.onPresentClick ?? undefined,
     } as any;
 

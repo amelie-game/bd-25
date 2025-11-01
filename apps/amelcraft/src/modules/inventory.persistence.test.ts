@@ -54,17 +54,21 @@ describe("Inventory persistence", () => {
     inv.addMany(Red, 3);
     inv.addObject("flower_red" as any);
     inv.addObject("flower_red" as any);
+    // Obtain special present flag
+    inv.obtainPresent();
     inv.saveNow();
     const raw = window.localStorage.getItem("amelcraft:inventory:seed-abc");
     expect(raw).toBeTruthy();
     const parsed = JSON.parse(raw!);
     expect(parsed.blocks.length).toBe(2);
     expect(parsed.objects[0].c).toBe(2);
+    expect(parsed.hasPresent).toBe(true);
     // New inventory instance loads existing
     const inv2 = new Inventory({ stackSize: 50, slotSize: 8 });
     inv2.enablePersistence("seed-abc");
     expect(inv2.countBlock(Yellow)).toBe(5);
     expect(inv2.countBlock(Red)).toBe(3);
     expect(inv2.countObject("flower_red" as any)).toBe(2);
+    expect(inv2.getHasPresent()).toBe(true);
   });
 });

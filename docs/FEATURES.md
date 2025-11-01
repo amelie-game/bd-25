@@ -13,7 +13,8 @@
 
 ## Inventory
 
-- The player has an inventory with all collected Blocks and their count
+- The player has an inventory with all collected Blocks and their count.
+- A special, non-placeable, non-craftable flag `hasPresent` may be set (e.g. from an event or reward). It is persisted but does not appear in block/object lists and cannot be consumed.
 
 ## Block Collection
 

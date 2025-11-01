@@ -13,13 +13,15 @@ export class Inventory {
 
   private blocks: InventoryBlockSlot[] = [];
   private objects: InventoryObjectSlot[] = [];
+  /** Non-placeable, non-craftable special flag indicating player owns a present. */
+  private hasPresent: boolean = true;
   // Persistence -------------------------------------------------------------
   private storageKey: string | null = null;
   private saveDelayMs = 500;
   private saveTimer: number | null = null;
   private dirty = false;
   private autosaveEnabled = false;
-  private static SERIALIZATION_VERSION = 1;
+  private static SERIALIZATION_VERSION = 2; // bumped for hasPresent field
 
   constructor({
     stackSize = 99,
@@ -181,6 +183,26 @@ export class Inventory {
     return this.objects;
   }
 
+  /** Whether the special present has been obtained. */
+  getHasPresent(): boolean {
+    return this.hasPresent;
+  }
+
+  /** Mark the present as obtained. Returns true if state changed. */
+  obtainPresent(): boolean {
+    if (this.hasPresent) return false; // already had it
+    this.hasPresent = true;
+    this.markDirty();
+    return true;
+  }
+
+  /** For testing or admin tools: clear the present flag. */
+  clearPresent(): void {
+    if (!this.hasPresent) return;
+    this.hasPresent = false;
+    this.markDirty();
+  }
+
   hasObject(id: ObjectId): boolean {
     return this.objects.some((s) => s.object === id && s.count > 0);
   }
@@ -238,6 +260,7 @@ export class Inventory {
       slotSize: this.slotSize,
       blocks,
       objects: objects.length ? objects : undefined,
+      hasPresent: this.hasPresent || undefined,
       ts: Date.now(),
     };
   }
@@ -273,6 +296,8 @@ export class Inventory {
         this.objects.push({ object: entry.o as ObjectId, count: entry.c });
       }
     }
+    // Special flag (defaults false if absent)
+    this.hasPresent = !!data.hasPresent;
     // After load, mark clean (avoid immediate save)
     this.dirty = false;
   }
