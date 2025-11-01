@@ -94,7 +94,7 @@ export class Player {
 
     // Build step sound pool from generated asset group
     this.stepSounds = this.stepSoundIds.map((id) =>
-      this.shell.sound.add(assets.audio[id], { volume: 0.6 })
+      this.shell.sound.add(assets.audio[id], { volume: 1 })
     );
 
     // Compute initial cadence based on current moveSpeed
