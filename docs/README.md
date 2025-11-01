@@ -2,6 +2,8 @@
 
 The game can be played by visiting https://game.amelie.belgar.eu/bd-25/, or by scanning this QR code.
 
+![QR Code](images/qr-code.svg)
+
 This repository contains a simple top-down game, inspired by Minecraft, being developed for Amelie's 7th birthday.
 
 ## Project Details
