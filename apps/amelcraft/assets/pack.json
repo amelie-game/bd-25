@@ -23,6 +23,50 @@
       "type": "audio",
       "key": "happy-birthday",
       "url": "assets/audio/happy-birthday.mp3"
+    },
+    {
+      "type": "audio",
+      "key": "step-grass-1",
+      "url": "assets/audio/step/grass1.ogg"
+    },
+    {
+      "type": "audio",
+      "key": "step-grass-2",
+      "url": "assets/audio/step/grass2.ogg"
+    },
+    {
+      "type": "audio",
+      "key": "step-grass-3",
+      "url": "assets/audio/step/grass3.ogg"
+    },
+    {
+      "type": "audio",
+      "key": "step-grass-4",
+      "url": "assets/audio/step/grass4.ogg"
+    },
+    {
+      "type": "audio",
+      "key": "step-grass-5",
+      "url": "assets/audio/step/grass5.ogg"
+    },
+    {
+      "type": "audio",
+      "key": "step-grass-6",
+      "url": "assets/audio/step/grass6.ogg"
     }
-  ]
+  ],
+  "metadata": {
+    "audio": {
+      "groups": {
+        "step-grass": [
+          "step-grass-1",
+          "step-grass-2",
+          "step-grass-3",
+          "step-grass-4",
+          "step-grass-5",
+          "step-grass-6"
+        ]
+      }
+    }
+  }
 }

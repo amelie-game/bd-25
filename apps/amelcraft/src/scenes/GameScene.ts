@@ -109,7 +109,7 @@ export class GameScene extends Phaser.Scene {
         this.selectMode(mode);
       },
       onPresentClick: () => {
-        this.sound.play(assets.audio.HappyBirthday.key);
+        this.sound.play(assets.audio.HappyBirthday);
       },
     });
     const playerStart: [number, number] = [

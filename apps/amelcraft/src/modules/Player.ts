@@ -46,6 +46,16 @@ export class Player {
   private autosaveEnabled = false;
   private static SERIALIZATION_VERSION = 1;
 
+  // Footstep sound state ---------------------------------------------------
+  private stepSounds: Phaser.Sound.BaseSound[] = [];
+  private lastStepIndex: number = -1;
+  private lastStepX: number = 0;
+  private lastStepY: number = 0;
+  private lastStepTime: number = 0;
+  private stepDistancePx: number = 18; // computed stride length (px)
+  private minStepIntervalMs: number = 90; // computed min interval (ms)
+  private desiredStepsPerSecond: number = 4; // target cadence
+
   constructor({ shell, start }: Params) {
     this.shell = shell;
 
@@ -76,6 +86,19 @@ export class Player {
       });
     }
     this.playAnim("idle", "down", true);
+
+    // Initialize step position baseline
+    this.lastStepX = this.sprite.x;
+    this.lastStepY = this.sprite.y;
+
+    // Build step sound pool from generated asset group
+    const grassGroupIds = assets.audio.groups.StepGrass;
+    this.stepSounds = grassGroupIds.map((id) =>
+      this.shell.sound.add(assets.audio[id], { volume: 0.6 })
+    );
+
+    // Compute initial cadence based on current moveSpeed
+    this.recomputeFootstepCadence();
   }
 
   // =============================
@@ -173,6 +196,8 @@ export class Player {
         this.target = null;
       }
     }
+    // Try playing a step sound if moving
+    this.maybePlayFootstep(_time);
   }
 
   stop() {
@@ -205,6 +230,7 @@ export class Player {
         this.playAnim("walk", dir, true);
         this.sprite.x = nx;
         this.sprite.y = ny;
+        // We'll trigger footstep outside here via maybePlayFootstep
       } else {
         // If not walkable, stop movement and play idle
         this.playAnim("idle", this.lastDirection, true);
@@ -383,5 +409,55 @@ export class Player {
 
   getSprite() {
     return this.sprite;
+  }
+
+  /** Override player speed and recompute footstep cadence (e.g. sprint). */
+  setMoveSpeed(pixelsPerSecond: number) {
+    this.moveSpeed = pixelsPerSecond;
+    this.recomputeFootstepCadence();
+  }
+
+  // ===================
+  // === FOOTSTEPS    ===
+  // ===================
+  private maybePlayFootstep(now: number) {
+    if (!this.isMoving()) return;
+    if (!this.stepSounds.length) return;
+
+    const dx = this.sprite.x - this.lastStepX;
+    const dy = this.sprite.y - this.lastStepY;
+    const dist = Math.hypot(dx, dy);
+    if (dist < this.stepDistancePx) return;
+    if (now - this.lastStepTime < this.minStepIntervalMs) return;
+
+    this.playRandomFootstep();
+    this.lastStepX = this.sprite.x;
+    this.lastStepY = this.sprite.y;
+    this.lastStepTime = now;
+  }
+
+  private playRandomFootstep() {
+    let idx: number;
+    do {
+      idx = Phaser.Math.Between(0, this.stepSounds.length - 1);
+    } while (this.stepSounds.length > 1 && idx === this.lastStepIndex);
+    const snd = this.stepSounds[idx];
+    (snd as any).setDetune?.(Phaser.Math.Between(-40, 40));
+    (snd as any).setRate?.(Phaser.Math.FloatBetween(0.95, 1.05));
+    snd.play();
+    this.lastStepIndex = idx;
+  }
+
+  // ===================
+  // === CADENCE CALC ===
+  // ===================
+  private recomputeFootstepCadence() {
+    // Derive stride length so that: steps/sec ~= desiredStepsPerSecond at current speed.
+    // stride = moveSpeed / desiredStepsPerSecond
+    this.stepDistancePx = this.moveSpeed / this.desiredStepsPerSecond;
+    // Minimum interval: fraction of ideal period (period = 1000 / stepsPerSecond).
+    // Using 0.65 to allow distance gate to dominate while preventing burst artifacts.
+    const periodMs = 1000 / this.desiredStepsPerSecond;
+    this.minStepIntervalMs = periodMs * 0.65;
   }
 }
