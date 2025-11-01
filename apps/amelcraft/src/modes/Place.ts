@@ -2,18 +2,40 @@ import Phaser from "phaser";
 import { GameScene } from "../scenes/GameScene";
 import { TILE_SIZE } from "../constants";
 import { toOption, isMode, isBlock, Block, Direction } from "../types";
+import { assets } from "../assets";
 
 export class PlaceMode {
   modeName = "place" as const;
   private shell: GameScene;
+  // Placement sounds pool (e.g. soft thud/grass). Reuse asset group definitions.
+  private placeSounds: Phaser.Sound.BaseSound[] = [];
+  private lastPlaceSoundIndex: number = -1;
+  private placeSoundIds = assets.audio.groups.PlaceGrass;
 
   constructor(shell: GameScene) {
     this.shell = shell;
+    // Pre-build sounds so first placement is instant.
+    this.placeSounds = this.placeSoundIds.map((id: string) =>
+      shell.sound.add((assets.audio as any)[id], { volume: 0.55 })
+    );
   }
 
-  enter() {}
+  enter() {
+    // Recreate sounds if they were cleared.
+    if (!this.placeSounds.length) {
+      const placeIds = assets.audio.groups.PlaceGrass;
+      this.placeSounds = placeIds.map((id: string) =>
+        (this.shell as any).sound.add((assets.audio as any)[id], {
+          volume: 0.55,
+        })
+      );
+    }
+  }
 
-  exit() {}
+  exit() {
+    // Stop (not destroy) to allow reuse.
+    this.placeSounds.forEach((s) => s.stop());
+  }
 
   update(_time: number, _delta: number) {}
 
@@ -89,6 +111,8 @@ export class PlaceMode {
 
     // perform place
     this.shell.getWorldManager().putTileAtGlobal(selected, tx, ty);
+    // Play placement sound (after tile update for immediate feedback)
+    this.playRandomPlaceSound();
     const remaining = this.shell.getInventory().remove(selected);
     if (remaining !== false) {
       if (remaining === 0) this.shell.selectMode("move");
@@ -100,5 +124,18 @@ export class PlaceMode {
           this.shell.getInventory().getObjects()
         );
     }
+  }
+
+  private playRandomPlaceSound() {
+    if (!this.placeSounds.length) return;
+    let idx: number;
+    do {
+      idx = Phaser.Math.Between(0, this.placeSounds.length - 1);
+    } while (this.placeSounds.length > 1 && idx === this.lastPlaceSoundIndex);
+    const snd = this.placeSounds[idx];
+    (snd as any).setDetune?.(Phaser.Math.Between(-35, 35));
+    (snd as any).setRate?.(Phaser.Math.FloatBetween(0.96, 1.04));
+    snd.play();
+    this.lastPlaceSoundIndex = idx;
   }
 }

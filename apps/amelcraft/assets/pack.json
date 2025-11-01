@@ -73,6 +73,26 @@
       "type": "audio",
       "key": "collect-wet-grass-4",
       "url": "assets/audio/collect/wet_grass4.ogg"
+    },
+    {
+      "type": "audio",
+      "key": "place-grass-1",
+      "url": "assets/audio/place/grass1.ogg"
+    },
+    {
+      "type": "audio",
+      "key": "place-grass-2",
+      "url": "assets/audio/place/grass2.ogg"
+    },
+    {
+      "type": "audio",
+      "key": "place-grass-3",
+      "url": "assets/audio/place/grass3.ogg"
+    },
+    {
+      "type": "audio",
+      "key": "place-grass-4",
+      "url": "assets/audio/place/grass4.ogg"
     }
   ],
   "metadata": {
@@ -91,6 +111,12 @@
           "collect-wet-grass-2",
           "collect-wet-grass-3",
           "collect-wet-grass-4"
+        ],
+        "place-grass": [
+          "place-grass-1",
+          "place-grass-2",
+          "place-grass-3",
+          "place-grass-4"
         ]
       }
     }
