@@ -38,3 +38,7 @@ Using the either of the following two, free online apps to generate icons from a
 
 - https://pwa-icon-generator.vercel.app/
 - https://realfavicongenerator.net/
+
+### 4. Creating a QR Code
+
+Generate a QR code, using https://www.qrcode-monkey.com, to easily access the URL of the deployed game.
