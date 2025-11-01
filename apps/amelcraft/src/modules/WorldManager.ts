@@ -1,4 +1,5 @@
 import { GameScene } from "../scenes/GameScene";
+import { assets } from "../assets";
 import { World } from "./World";
 import { hashString32 } from "../proc/gen";
 import { IChunkStore, chunkStorageKey } from "./persistence/IChunkStore";
@@ -43,6 +44,10 @@ export class WorldManager {
   private maxNewChunksPerFrame = 2; // throttle generation bursts
   private maxActiveChunks = 10; // safety cap (e.g., 3x3 around player)
   private pendingNeighborLoads: Set<string> = new Set(); // neighbors throttled this frame
+  // Seed-based one-time Present placement (no persistence yet)
+  private presentTargetChunk: { chunkX: number; chunkY: number } | null = null;
+  private presentPlaced = false; // placed in world already this session
+  private presentTileIndex: number = -1; // linear tile index within chunk (tx + ty * CHUNK_TILES)
 
   constructor(
     shell: GameScene,
@@ -56,6 +61,11 @@ export class WorldManager {
       this.store = store ?? new IndexedDBChunkStore();
     } catch {
       this.store = new InMemoryChunkStore();
+    }
+    // Determine deterministic target chunk for present on construction
+    this.choosePresentChunk();
+    if (this.presentTargetChunk) {
+      console.debug("present-chunk-chosen", this.presentTargetChunk);
     }
   }
 
@@ -74,6 +84,113 @@ export class WorldManager {
       // eslint-disable-next-line no-console
       console.log("[WMDBG]", ...args);
     }
+  }
+
+  // -----------------------------
+  // Present deterministic selection
+  // -----------------------------
+  private choosePresentChunk() {
+    // Candidate chunks: Chebyshev radius <= 2 around origin (5x5 grid)
+    const candidates: { chunkX: number; chunkY: number }[] = [];
+    const R = 2;
+    for (let cx = -R; cx <= R; cx++) {
+      for (let cy = -R; cy <= R; cy++) {
+        candidates.push({ chunkX: cx, chunkY: cy });
+      }
+    }
+    const h = hashString32(`${this.seed}:present-chunk`);
+    const pick = candidates[h % candidates.length];
+    this.presentTargetChunk = pick;
+  }
+
+  private tryPlacePresent(chunk: World) {
+    if (this.shell.getInventory().getHasPresent()) return; // player already has present
+    if (this.presentPlaced) return; // already placed this session
+    if (!this.presentTargetChunk) return;
+    const { chunkX, chunkY } = chunk.getChunkCoords();
+    if (
+      chunkX !== this.presentTargetChunk.chunkX ||
+      chunkY !== this.presentTargetChunk.chunkY
+    )
+      return; // not the target chunk
+    // Determine tile if not yet chosen
+    if (this.presentTileIndex === -1) {
+      this.presentTileIndex = this.pickPresentTileIndex(chunk);
+      this.dlog("present-tile-picked", {
+        chunkX,
+        chunkY,
+        tileIndex: this.presentTileIndex,
+      });
+    }
+    if (this.presentTileIndex < 0) {
+      this.dlog("present-tile-pick-failed", { chunkX, chunkY });
+      return; // no eligible tile
+    }
+    const tx = this.presentTileIndex % CHUNK_TILES;
+    const ty = Math.floor(this.presentTileIndex / CHUNK_TILES);
+    const existing = (chunk as any).getObjectAt?.(tx, ty);
+    if (existing) {
+      // Attempt linear probing among eligible indices to find free slot
+      const eligible = this.getEligiblePresentIndices(chunk);
+      if (!eligible.length) return;
+      const startIdx = eligible.indexOf(this.presentTileIndex);
+      for (let j = 0; j < eligible.length; j++) {
+        const idx = eligible[(startIdx + j) % eligible.length];
+        const ntx = idx % CHUNK_TILES;
+        const nty = Math.floor(idx / CHUNK_TILES);
+        const occ = (chunk as any).getObjectAt?.(ntx, nty);
+        if (!occ) {
+          this.presentTileIndex = idx;
+          break;
+        }
+      }
+    }
+    const finalTx = this.presentTileIndex % CHUNK_TILES;
+    const finalTy = Math.floor(this.presentTileIndex / CHUNK_TILES);
+    const added = (chunk as any).addObject?.(
+      assets.objects.sprites.Present,
+      finalTx,
+      finalTy
+    );
+    if (added) {
+      this.presentPlaced = true;
+      this.dlog("present-placed", {
+        chunkX,
+        chunkY,
+        tx: finalTx,
+        ty: finalTy,
+        tileIndex: this.presentTileIndex,
+      });
+    } else {
+      this.dlog("present-place-failed", { chunkX, chunkY, finalTx, finalTy });
+    }
+  }
+
+  private pickPresentTileIndex(chunk: World): number {
+    const eligible = this.getEligiblePresentIndices(chunk);
+    if (!eligible.length) return -1;
+    const { chunkX, chunkY } = chunk.getChunkCoords();
+    const h = hashString32(`${this.seed}:present-tile:${chunkX}:${chunkY}`);
+    return eligible[h % eligible.length];
+  }
+
+  private getEligiblePresentIndices(chunk: World): number[] {
+    // Prefer grass; fallback to any non-water tile
+    const grassIndices: number[] = [];
+    const landIndices: number[] = [];
+    for (let ty = 0; ty < CHUNK_TILES; ty++) {
+      for (let tx = 0; tx < CHUNK_TILES; tx++) {
+        const tile = chunk.getTileAt(tx, ty);
+        if (!tile) continue;
+        const idx = tx + ty * CHUNK_TILES;
+        if (tile.index === (assets.blocks as any).sprites.Water) continue;
+        // classify
+        if (tile.index === (assets.blocks as any).sprites.Grass)
+          grassIndices.push(idx);
+        landIndices.push(idx);
+      }
+    }
+    return grassIndices.length ? grassIndices : landIndices;
   }
 
   // Get (or create) a chunk
@@ -135,6 +252,8 @@ export class WorldManager {
       active: this.activeChunks.size,
       newChunksThisFrame: this.newChunksThisFrame.slice(),
     });
+    // Attempt present placement immediately after generation (before async diff load)
+    this.tryPlacePresent(chunk);
     const endGen = performance.now?.() ?? Date.now();
     this.metrics.generationTimeMs += endGen - startGen;
     this.metrics.chunksLoaded++;

@@ -279,7 +279,23 @@ export class CollectMode {
           );
         return; // do not mutate tile for rock collection
       }
-      // Flower or other collectible: attempt to add
+      // Flower or other collectible (including Present)
+      if (id === (assets.objects.sprites as any).Present) {
+        // Special Present: only collect once; set flag & remove sprite
+        const inv = this.shell.getInventory();
+        if (!inv.getHasPresent()) {
+          const changed = inv.obtainPresent();
+          if (changed) {
+            wm.removeObjectAtGlobal(tx, ty);
+            this.shell
+              .getHud()
+              .update(inv.getBlocks(), this.shell.getMode(), inv.getObjects());
+            return; // handled
+          }
+        }
+        // Already obtained; ignore further clicks (no tile mutation)
+        return;
+      }
       const added = this.shell.getInventory().addObject(id);
       if (added) {
         wm.removeObjectAtGlobal(tx, ty);

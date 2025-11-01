@@ -13,8 +13,10 @@ export class Inventory {
 
   private blocks: InventoryBlockSlot[] = [];
   private objects: InventoryObjectSlot[] = [];
-  /** Non-placeable, non-craftable special flag indicating player owns a present. */
-  private hasPresent: boolean = true;
+  /** Non-placeable, non-craftable special flag indicating player owns a present.
+   *  Defaults false so player can collect it once in the world.
+   */
+  private hasPresent: boolean = false;
   // Persistence -------------------------------------------------------------
   private storageKey: string | null = null;
   private saveDelayMs = 500;

@@ -1,15 +1,22 @@
 # Features
 
-## Player Movement
 
+### Present (Special Collectible)
+The Present is a special one-time collectible placed deterministically in a chunk near the origin based on the world seed. It is not stored as a regular inventory object stack; instead, collecting it sets an internal `hasPresent` flag on the player's `Inventory`.
+
+Collection rules:
+* Appears once per session in the chosen chunk (placement is seed-deterministic).
+* When clicked in Collect mode, if the player does not yet own it, `inventory.obtainPresent()` is invoked and the present sprite is removed from the world.
+* Subsequent clicks on the original location are ignored (no re-spawn).
+* The flag persists with the rest of inventory state (`hasPresent` serialized when true).
+
+UI integration:
+* HUD may display a Present indicator/button when feature testing flags enable it.
+
+Testing:
+* Present collection is covered by `present-collection.test.ts` ensuring one-time acquisition and sprite removal.
 - The player can select "Moving" mode via the HUD.
 - While in Moving mode, pressing and holding the mouse button or touch pointer causes the PC to walk toward the pointer, following it as long as it is pressed.
-- If the player moves the mouse/pointer while it's being pressed, the PC will change its course and walk towards the new destination
-- The PC cannot walk onto invalid terrain:
-  - Water Blocks
-- No tile highlighting occurs in this mode.
-- The camera follows the PC, maintaining visibility and recentering if the PC nears the edge.
-- Zooming is available via scroll wheel (mouse) or pinch (touch), always centering on the PC.
 
 ## Inventory
 

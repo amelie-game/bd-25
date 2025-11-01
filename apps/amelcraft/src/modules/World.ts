@@ -167,9 +167,13 @@ export class World {
       return false;
     const idx = tileIndex(tx, ty);
     const tileId = this.baseTiles[idx];
-    // If an object occupies this tile and is a rock variant, treat as non-walkable
+    // If an object occupies this tile and is a rock or present variant, treat as non-walkable
     const obj = this.objects.get(idx);
-    if (obj && obj.startsWith("rock_")) return false;
+    if (
+      obj &&
+      (obj.startsWith("rock_") || obj === assets.objects.sprites.Present)
+    )
+      return false;
     return tileId !== assets.blocks.sprites.Water; // Non-water walkable for now
   }
 

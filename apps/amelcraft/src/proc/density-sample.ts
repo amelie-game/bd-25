@@ -34,6 +34,11 @@ class HeadlessScene {
       destroy: () => {},
     }),
   };
+  // Minimal inventory stub so WorldManager can query present ownership.
+  private _inv = { getHasPresent: () => false };
+  getInventory() {
+    return this._inv;
+  }
 }
 
 export interface DensitySampleResult {
