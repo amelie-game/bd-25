@@ -55,6 +55,7 @@ export class Player {
   private stepDistancePx: number = 18; // computed stride length (px)
   private minStepIntervalMs: number = 90; // computed min interval (ms)
   private desiredStepsPerSecond: number = 4; // target cadence
+  private stepSoundIds = assets.audio.groups.StepGrass;
 
   constructor({ shell, start }: Params) {
     this.shell = shell;
@@ -92,8 +93,7 @@ export class Player {
     this.lastStepY = this.sprite.y;
 
     // Build step sound pool from generated asset group
-    const grassGroupIds = assets.audio.groups.StepGrass;
-    this.stepSounds = grassGroupIds.map((id) =>
+    this.stepSounds = this.stepSoundIds.map((id) =>
       this.shell.sound.add(assets.audio[id], { volume: 0.6 })
     );
 

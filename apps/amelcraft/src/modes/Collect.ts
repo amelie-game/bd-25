@@ -19,14 +19,33 @@ export class CollectMode {
   private collectTime = 1000; // ms
   // Progress bar vertical offset below player feet (tweakable)
   private progressBarOffset = TILE_SIZE * 0.6; // previously 0.15; increased to sit lower
+  // Collect sounds (grass collection feedback). We reuse group IDs defined in assets.ts.
+  private collectSounds: Phaser.Sound.BaseSound[] = [];
+  private lastCollectSoundIndex: number = -1;
+  // Number of action sounds to play per collection cycle
+  private desiredActionsPerCollection = 3;
+  // Internal counter of how many sounds have been played for current collection
+  private playedActionSounds = 0;
+  private collectSoundIds = assets.audio.groups.CollectWetGrass;
 
   constructor(shell: GameScene) {
     this.shell = shell;
+    // Pre-build collect sounds so first collection is instant.
+    this.collectSounds = this.collectSoundIds.map((id) =>
+      shell.sound.add(assets.audio[id], { volume: 0.5 })
+    );
   }
 
   enter() {
     this.gfx = this.shell.add.graphics();
     this.gfx.setDepth(10);
+    // Recreate sounds if they were destroyed (e.g., mode toggled off then on).
+    if (!this.collectSounds.length) {
+      const collectGroupIds = assets.audio.groups.CollectGrass;
+      this.collectSounds = collectGroupIds.map((id) =>
+        this.shell.sound.add(assets.audio[id], { volume: 0.5 })
+      );
+    }
   }
 
   exit() {
@@ -35,6 +54,8 @@ export class CollectMode {
       this.gfx.destroy();
       this.gfx = null;
     }
+    // Rather than destroy, just stop any playing sounds; keep pool for reuse.
+    this.collectSounds.forEach((s) => s.stop());
   }
 
   update(time: number, delta: number) {
@@ -45,6 +66,20 @@ export class CollectMode {
         0,
         1
       );
+      // Progress-based triggering using threshold array for stability.
+      // Precompute thresholds lazily once per collection start.
+      if (this.playedActionSounds === 0 && this.collectionProgress === 0) {
+        // (Start frame) nothing to do yet.
+      }
+      const thresholds = this.getActionSoundThresholds();
+      // Iterate from current count forward; play sound when crossing threshold.
+      if (this.playedActionSounds < thresholds.length) {
+        const nextThreshold = thresholds[this.playedActionSounds];
+        if (this.collectionProgress >= nextThreshold) {
+          this.playRandomCollectSound();
+          this.playedActionSounds++;
+        }
+      }
     } else {
       this.collectionProgress = 0;
     }
@@ -189,9 +224,12 @@ export class CollectMode {
         }
         this.collecting = null;
         this.collectionProgress = 0;
+        this.playedActionSounds = 0;
       }),
     };
     this.collectionProgress = 0;
+    this.playedActionSounds = 0; // reset sound counter
+    // Ensure thresholds function has correct desiredActionsPerCollection (no caching needed currently)
   }
 
   private cancelCollection() {
@@ -200,10 +238,12 @@ export class CollectMode {
         this.collecting.timer.remove(false);
       this.collecting = null;
       this.collectionProgress = 0;
+      this.playedActionSounds = 0;
     }
   }
 
   private finishCollection(tx: number, ty: number) {
+    // No longer playing a single sound here; sounds are triggered incrementally during progress.
     const GRASS = assets.blocks.sprites.Grass;
     const WATER = assets.blocks.sprites.Water;
     const GROUND = assets.blocks.sprites.Brown;
@@ -342,5 +382,30 @@ export class CollectMode {
   // public getters for UI/debug
   getCollectionProgress() {
     return this.collectionProgress;
+  }
+
+  private playRandomCollectSound() {
+    if (!this.collectSounds.length) return;
+    let idx: number;
+    do {
+      idx = Phaser.Math.Between(0, this.collectSounds.length - 1);
+    } while (
+      this.collectSounds.length > 1 &&
+      idx === this.lastCollectSoundIndex
+    );
+    const snd = this.collectSounds[idx];
+    (snd as any).setDetune?.(Phaser.Math.Between(-60, 60));
+    (snd as any).setRate?.(Phaser.Math.FloatBetween(0.9, 1.07));
+    snd.play();
+    this.lastCollectSoundIndex = idx;
+  }
+
+  private getActionSoundThresholds(): number[] {
+    // Equal division thresholds; e.g. desired=3 -> [1/3, 2/3, 1]
+    const n = this.desiredActionsPerCollection;
+    if (n <= 0) return [];
+    const arr: number[] = [];
+    for (let i = 1; i <= n; i++) arr.push(i / n);
+    return arr;
   }
 }

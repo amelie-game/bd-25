@@ -53,6 +53,26 @@
       "type": "audio",
       "key": "step-grass-6",
       "url": "assets/audio/step/grass6.ogg"
+    },
+    {
+      "type": "audio",
+      "key": "collect-wet-grass-1",
+      "url": "assets/audio/collect/wet_grass1.ogg"
+    },
+    {
+      "type": "audio",
+      "key": "collect-wet-grass-2",
+      "url": "assets/audio/collect/wet_grass2.ogg"
+    },
+    {
+      "type": "audio",
+      "key": "collect-wet-grass-3",
+      "url": "assets/audio/collect/wet_grass3.ogg"
+    },
+    {
+      "type": "audio",
+      "key": "collect-wet-grass-4",
+      "url": "assets/audio/collect/wet_grass4.ogg"
     }
   ],
   "metadata": {
@@ -65,6 +85,12 @@
           "step-grass-4",
           "step-grass-5",
           "step-grass-6"
+        ],
+        "collect-wet-grass": [
+          "collect-wet-grass-1",
+          "collect-wet-grass-2",
+          "collect-wet-grass-3",
+          "collect-wet-grass-4"
         ]
       }
     }

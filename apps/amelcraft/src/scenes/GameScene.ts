@@ -26,10 +26,10 @@ export class GameScene extends Phaser.Scene {
   private selectedMode: Option = "move";
   // pointer down state is managed by the individual modes
 
-  private collectMode: CollectMode;
-  private moveMode: MoveMode;
-  private placeMode: PlaceMode;
-  private activeMode: CollectMode | MoveMode | PlaceMode;
+  private collectMode!: CollectMode;
+  private moveMode!: MoveMode;
+  private placeMode!: PlaceMode;
+  private activeMode!: CollectMode | MoveMode | PlaceMode;
 
   private pointer!: Pointer;
   private worldManager!: WorldManager;
@@ -42,11 +42,6 @@ export class GameScene extends Phaser.Scene {
 
   constructor() {
     super("GameScene");
-
-    this.collectMode = new CollectMode(this);
-    this.moveMode = new MoveMode(this);
-    this.placeMode = new PlaceMode(this);
-    this.activeMode = this.moveMode; // default mode
   }
 
   init(data: { seed?: string | number }): void {
@@ -126,8 +121,13 @@ export class GameScene extends Phaser.Scene {
     // Ensure initial view is centered on the player
     this.camera.recenter();
     this.devOverlay = new DevOverlay(this, this.worldManager);
+
+    this.collectMode = new CollectMode(this);
+    this.moveMode = new MoveMode(this);
+    this.placeMode = new PlaceMode(this);
+    this.activeMode = this.moveMode; // default mode
     // Ensure HUD selection switches modes via selectMode and initialize mode
-    this.selectMode(this.selectedMode);
+    this.selectMode("move");
 
     // --- Pointer/Touch Controls ---
     this.setupUnifiedPointerControls();
