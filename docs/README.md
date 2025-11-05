@@ -42,3 +42,9 @@ Using the either of the following two, free online apps to generate icons from a
 ### 4. Creating a QR Code
 
 Generate a QR code, using https://www.qrcode-monkey.com, to easily access the URL of the deployed game.
+
+### 5. Create a printable birthday card
+
+Using https://canva.com to design the card and include the game icon
+
+![Bidthay Card](images/birthday-card.png)
