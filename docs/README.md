@@ -1,4 +1,4 @@
-# Birthday Detective Game
+# Birthday Minecraft Light Game
 
 The game can be played by visiting https://game.amelie.belgar.eu/bd-25/, or by scanning this QR code.
 
