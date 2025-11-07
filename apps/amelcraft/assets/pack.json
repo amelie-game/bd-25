@@ -1,6 +1,16 @@
 {
   "files": [
     {
+      "type": "image",
+      "key": "game-icon",
+      "url": "assets/manifest/icons/icon-192x192.png"
+    },
+    {
+      "type": "image",
+      "key": "title",
+      "url": "assets/ui/title.png"
+    },
+    {
       "type": "aseprite",
       "key": "amelie",
       "textureURL": "assets/characters/amelie-party-hat.png",

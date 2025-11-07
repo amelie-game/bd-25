@@ -32,6 +32,12 @@ Copilot was very successful in creating a Minecraft-like picture based on one of
 
 ![Result](../apps/amelcraft/assets/manifest/icons/icon-256x256.png)
 
+### 3. Create a Minecraft styled title
+
+Use https://www.textstudio.com/logo/minecraft-3d-text-41
+
+![alt text](../apps/amelcraft/assets/ui/title.png)
+
 ### 3. Turning it into a PWA
 
 Using the either of the following two, free online apps to generate icons from a source image and manifest metadata, to turn the web app into a PWA.

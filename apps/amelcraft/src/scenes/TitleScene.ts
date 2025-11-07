@@ -35,12 +35,24 @@ export class TitleScene extends Phaser.Scene {
     // Animations
     this.anims.createFromAseprite(assets.amelie.key);
 
+    // Game icon
     this.add
-      .text(width / 2, height / 2 - 40, "Amelcraft", {
-        font: "32px Arial",
-        color: "#fff",
-      })
+      .image(width / 2, height / 2 - 200, "game-icon")
+      .setOrigin(0.5)
+      .setDisplaySize(96, 96);
+
+    const maxTitleWidth = Math.min(width * 0.9, 600); // 90% of screen width, max 600px
+
+    const titleImage = this.add
+      .image(width / 2, height / 2 - 80, "title")
       .setOrigin(0.5);
+
+    if (titleImage.width > maxTitleWidth) {
+      const scale = maxTitleWidth / titleImage.width;
+      titleImage.setScale(scale);
+    }
+
+    // Make title responsive - scale to fit screen width with padding
 
     const hasPersistence = await this.hasPersistentState();
 
